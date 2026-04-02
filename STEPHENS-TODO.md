@@ -80,11 +80,12 @@ Cosmograph 2.0 is built on four OSS layers — all usable independently:
 **Decision: no 3D needed** — cosmos.gl is 2D only, which is fine. 3D (via 3d-force-graph) loses GPU simulation and falls back to CPU d3-force-3d. Not worth it for this project.
 
 **Preferred browser architecture for this project:**
-1. Python pipeline → `nodes.parquet` + `edges.parquet` (via pyarrow)
-2. Host on Cloudflare R2
-3. SQLRooms app: load parquet into DuckDB-WASM → SQL filter/query → cosmos.gl renders via `@sqlrooms/cosmos`
+1. Python pipeline → `nodes.parquet` + `edges.parquet` (via pyarrow) — or just CSV
+2. **No server needed** — drag and drop file into the browser app; DuckDB-WASM reads it entirely in-memory, nothing leaves the machine
+3. SQLRooms app: file drop → DuckDB-WASM → SQL filter/query → cosmos.gl renders via `@sqlrooms/cosmos`
 4. Mosaic for cross-filtering (e.g. filter by connection count, article category)
 5. Click node → open Wikipedia URL
+6. Can also host the static app on Cloudflare Pages (free) if sharing — user still drops their own data file
 
 **References:**
 - cosmos.gl: https://github.com/cosmograph-org/cosmos (now OpenJS)
