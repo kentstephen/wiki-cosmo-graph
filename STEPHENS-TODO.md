@@ -93,6 +93,12 @@ Cosmograph 2.0 is built on four OSS layers — all usable independently:
 - SQLRooms examples: https://github.com/jjballano/sqlrooms-examples
 - Mosaic: https://github.com/uwdata/mosaic
 
+**License clarity:**
+- `cosmos.gl` (OpenJS): MIT ✓
+- `@cosmograph/cosmograph`: no license stated = all rights reserved. Avoid.
+- `@sqlrooms/cosmos` wraps cosmos.gl directly — bypasses Cosmograph's proprietary layer entirely ✓
+- **Decision: SQLRooms all the way. Drop @cosmograph/cosmograph.**
+
 **Status:** hold, build when ready to go browser/public
 
 ---
