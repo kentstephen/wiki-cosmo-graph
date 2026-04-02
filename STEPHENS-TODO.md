@@ -60,6 +60,16 @@
 - **Potential complement**: embed Wikipedia article text (e.g. via sentence-transformers), UMAP to 2D, explore semantic clusters alongside the link graph — "which articles are semantically close?" vs "which articles link to each other?"
 - Future idea, not blocking
 
+### D3 + Observable + Cloudflare (future preferred path)
+- **D3 force graph**: fully OSS (ISC license), complete control over interaction — click to open Wikipedia, highlight neighbors, custom tooltips, everything
+- **Observable notebooks**: shareable URL, runs in browser, D3 native, collaborative, free tier — send a link and anyone sees the live graph
+- **Cloudflare R2**: host `nodes.parquet` + `edges.parquet`, free tier, CORS-friendly; Workers available if ETL ever needs a server-side step
+- **Data flow**: Python pipeline → parquet on R2 → Observable fetches via URL → D3 renders
+- Observable supports Apache Arrow/Parquet natively via `apache-arrow` npm package
+- More setup than Cosmograph but fully open, shareable, and maintainable long-term
+- **On Cosmograph**: Python wrapper is open but core JS renderer (`@cosmograph/cosmograph`) is source-available only — no license for self-hosting or modification. This is the reason to move on.
+- **Status**: hold, build when ready to go public/shareable
+
 ### Browser upgrade path
 - Python pipeline exports `nodes.parquet` + `edges.parquet`
 - Browser JS app reads them directly
