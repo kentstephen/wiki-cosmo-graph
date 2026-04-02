@@ -180,7 +180,7 @@ def _(Cosmograph, curved, edges_df, mo, nodes_df, show_arrows):
 @app.cell
 def _(graph, mo, nodes_df):
     # ── Clicked node info + Wikipedia link ───────────────────────────────────
-    clicked_id = graph._widget.clicked_point_id  # type: ignore[attr-defined]
+    clicked_id = graph.value.get("clicked_point_id")
 
     if clicked_id:
         _row = nodes_df.filter(nodes_df["id"] == clicked_id)
