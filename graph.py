@@ -142,52 +142,44 @@ def _(mo):
 
 
 @app.cell
-def _(Cosmograph, curved, edges_df, mo, nodes_df, show_arrows):
+def _(Cosmograph, curved, edges_df, nodes_df, show_arrows):
     # ── Render graph ──────────────────────────────────────────────────────────
-    graph = mo.ui.anywidget(
-        Cosmograph(
-            points=nodes_df.to_pandas(),
-            links=edges_df.to_pandas(),
-            point_id_by="id",
-            point_label_by="id",
-            point_color_by="node_type",
-            point_color_by_map={"seed": "#60a5fa"},
-            link_source_by="source",
-            link_target_by="target",
-            link_width=1.5,
-            link_color="#94a3b8",
-            link_greyout_opacity=0.05,
-            point_greyout_opacity=0.1,
-            select_point_on_click=True,
-            render_hovered_point_ring=True,
-            link_arrows=show_arrows.value,
-            curved_links=curved.value,
-            simulation_gravity=0.1,
-            simulation_repulsion=2.0,
-            simulation_link_spring=1.0,
-            simulation_friction=0.85,
-            show_labels=True,
-            show_hovered_point_label=True,
-            fit_view_on_init=True,
-            background_color="#0f172a",
-            point_label_color="#e2e8f0",
-        )
+    graph = Cosmograph(
+        points=nodes_df.to_pandas(),
+        links=edges_df.to_pandas(),
+        point_id_by="id",
+        point_label_by="id",
+        point_color_by="node_type",
+        point_color_by_map={"seed": "#60a5fa"},
+        link_source_by="source",
+        link_target_by="target",
+        link_width=1.5,
+        link_color="#94a3b8",
+        link_greyout_opacity=0.05,
+        point_greyout_opacity=0.1,
+        select_point_on_click=True,
+        render_hovered_point_ring=True,
+        link_arrows=show_arrows.value,
+        curved_links=curved.value,
+        simulation_gravity=0.1,
+        simulation_repulsion=2.0,
+        simulation_link_spring=1.0,
+        simulation_friction=0.85,
+        show_labels=True,
+        show_hovered_point_label=True,
+        fit_view_on_init=True,
+        background_color="#0f172a",
+        point_label_color="#e2e8f0",
     )
     graph
     return (graph,)
 
 
 @app.cell
-def _(graph, mo, nodes_df):
-    # ── Clicked node info + Wikipedia link ───────────────────────────────────
-    clicked_id = graph.value.get("clicked_point_id")
-
-    if clicked_id:
-        _row = nodes_df.filter(nodes_df["id"] == clicked_id)
-        _url = _row["wiki_url"][0] if len(_row) > 0 else f"https://en.wikipedia.org/wiki/{clicked_id.replace(' ', '_')}"
-        info = mo.md(f"**Selected:** [{clicked_id}]({_url}) — [open Wikipedia ↗]({_url}){{target='_blank'}}")
-    else:
-        info = mo.md("_Click a node to open its Wikipedia article_")
-
-    info
-    return (clicked_id, info)
+def _(mo, nodes_df):
+    # ── Article index with Wikipedia links ───────────────────────────────────
+    links_md = "\n".join(
+        f"- [{row['id']}]({row['wiki_url']})"
+        for row in nodes_df.sort("id").iter_rows(named=True)
+    )
+    mo.md(f"### Articles\n{links_md}")
