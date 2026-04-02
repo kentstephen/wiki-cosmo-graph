@@ -37,7 +37,24 @@
 
 ### Open Questions / Decisions Made
 - Arrow for data handoff: confirmed, use pyarrow
-- Marimo: confirmed, try first; Jupyter as fallback
+- Marimo: **deprecated** — Cosmograph anywidget ESM doesn't initialize in Marimo's browser runtime; graph.py kept but non-functional, remove when ready
 - HuggingFace: possible future destination for the dataset, not blocking
-- Browser app upgrade: deferred
+- Browser app upgrade: see notes below
+
+---
+
+## Browser Upgrade Notes (2026-04-02)
+
+### Cosmograph JS library (`@cosmograph/cosmograph`, `@cosmograph/react`)
+- Accepts Parquet (`.parquet`/`.pq`) and Apache Arrow natively — **no DuckDB required**
+- Also accepts CSV, JSON, JS objects, URLs
+- Has a `MosaicVgplotComponent` in the API — some Mosaic.js integration exists
+- No SQLROOMS integration documented
+- Docs: https://cosmograph.app/docs-lib/
+
+### Browser upgrade path
+- Python pipeline exports `nodes.parquet` + `edges.parquet`
+- Browser JS app reads them directly
+- Could wire up Mosaic.js for linked views (histogram of connection counts, etc.) if desired later
+- TODO: remove Marimo (`graph.py`, `marimo` dep from pyproject.toml) when ready
 
