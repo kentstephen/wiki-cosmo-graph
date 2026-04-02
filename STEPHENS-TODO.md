@@ -52,6 +52,14 @@
 - No SQLROOMS integration documented
 - Docs: https://cosmograph.app/docs-lib/
 
+### Apple Embedding Atlas (https://github.com/apple/embedding-atlas)
+- Fully OSS (Apple), MIT licensed
+- **Not a replacement for Cosmograph** — it's a scatter plot / embedding explorer, not a network graph
+- Renders UMAP/t-SNE style 2D density maps with auto-clustering, nearest-neighbor search, cross-filtering
+- Python widget + CLI, accepts Parquet, WebGPU rendering
+- **Potential complement**: embed Wikipedia article text (e.g. via sentence-transformers), UMAP to 2D, explore semantic clusters alongside the link graph — "which articles are semantically close?" vs "which articles link to each other?"
+- Future idea, not blocking
+
 ### Browser upgrade path
 - Python pipeline exports `nodes.parquet` + `edges.parquet`
 - Browser JS app reads them directly
