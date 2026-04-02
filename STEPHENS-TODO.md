@@ -60,7 +60,43 @@
 - **Potential complement**: embed Wikipedia article text (e.g. via sentence-transformers), UMAP to 2D, explore semantic clusters alongside the link graph — "which articles are semantically close?" vs "which articles link to each other?"
 - Future idea, not blocking
 
-### D3 + Observable + Cloudflare (future preferred path)
+### Cosmograph 2.0 Stack Breakdown (2026-04-02)
+
+Cosmograph 2.0 is built on four OSS layers — all usable independently:
+
+| Layer | Package | Role |
+|---|---|---|
+| GPU rendering + layout | `cosmos.gl` (OpenJS) | WebGL force simulation on GPU — faster than d3-force or 3d-force-graph (CPU) |
+| Data pipeline | DuckDB-WASM + Apache Arrow | In-browser SQL queries, filtering, aggregation; zero-copy columnar transfer to WebGL |
+| Cross-filtering framework | Mosaic (UW IDL) | Linked views, interactive filtering across charts |
+| React app shell | SQLRooms | Zustand state, composable layout, DuckDB hooks, plugin system |
+
+**Two sources of speed:**
+- *Rendering speed*: cosmos.gl runs the entire force simulation as WebGL shaders on the GPU
+- *Data speed*: DuckDB-WASM + Arrow handles filtering/aggregation in-browser without a server
+
+**SQLRooms has `@sqlrooms/cosmos`** — React components + hooks wrapping cosmos.gl with Zustand state management. Working example app: https://github.com/jjballano/sqlrooms-examples (cosmos graph + cosmos 2D embedding examples).
+
+**Decision: no 3D needed** — cosmos.gl is 2D only, which is fine. 3D (via 3d-force-graph) loses GPU simulation and falls back to CPU d3-force-3d. Not worth it for this project.
+
+**Preferred browser architecture for this project:**
+1. Python pipeline → `nodes.parquet` + `edges.parquet` (via pyarrow)
+2. Host on Cloudflare R2
+3. SQLRooms app: load parquet into DuckDB-WASM → SQL filter/query → cosmos.gl renders via `@sqlrooms/cosmos`
+4. Mosaic for cross-filtering (e.g. filter by connection count, article category)
+5. Click node → open Wikipedia URL
+
+**References:**
+- cosmos.gl: https://github.com/cosmograph-org/cosmos (now OpenJS)
+- SQLRooms: https://github.com/sqlrooms/sqlrooms
+- SQLRooms examples: https://github.com/jjballano/sqlrooms-examples
+- Mosaic: https://github.com/uwdata/mosaic
+
+**Status:** hold, build when ready to go browser/public
+
+---
+
+### D3 + Observable + Cloudflare (simpler alternative)
 - **D3 force graph**: fully OSS (ISC license), complete control over interaction — click to open Wikipedia, highlight neighbors, custom tooltips, everything
 - **Observable notebooks**: shareable URL, runs in browser, D3 native, collaborative, free tier — send a link and anyone sees the live graph
 - **Cloudflare R2**: host `nodes.parquet` + `edges.parquet`, free tier, CORS-friendly; Workers available if ETL ever needs a server-side step
@@ -68,7 +104,7 @@
 - Observable supports Apache Arrow/Parquet natively via `apache-arrow` npm package
 - More setup than Cosmograph but fully open, shareable, and maintainable long-term
 - **On Cosmograph**: Python wrapper is open but core JS renderer (`@cosmograph/cosmograph`) is source-available only — no license for self-hosting or modification. This is the reason to move on.
-- **Status**: hold, build when ready to go public/shareable
+- **Status**: hold — SQLRooms/cosmos.gl stack above is preferred for performance at scale; D3/Observable is simpler if the graph stays small
 
 ### Browser upgrade path
 - Python pipeline exports `nodes.parquet` + `edges.parquet`
