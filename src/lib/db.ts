@@ -11,36 +11,15 @@ async function getDb() {
     await connector.initialize()
     initialized = true
 
-    // Fetch and load CSVs
     const [nodesText, edgesText] = await Promise.all([
       fetch('/nodes.csv').then(r => r.text()),
       fetch('/edges.csv').then(r => r.text()),
     ])
 
-    const nodes = parseCsv(nodesText)
-    const edges = parseCsv(edgesText)
-
-    await connector.loadObjects(nodes, 'nodes')
-    await connector.loadObjects(edges, 'edges')
+    await connector.loadFile(new File([nodesText], 'nodes.csv', { type: 'text/csv' }), 'nodes')
+    await connector.loadFile(new File([edgesText], 'edges.csv', { type: 'text/csv' }), 'edges')
   }
   return connector
-}
-
-function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.trim().split('\n')
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-  return lines.slice(1).map(line => {
-    // Handle quoted fields
-    const values: string[] = []
-    let cur = '', inQuote = false
-    for (const ch of line) {
-      if (ch === '"') { inQuote = !inQuote }
-      else if (ch === ',' && !inQuote) { values.push(cur); cur = '' }
-      else { cur += ch }
-    }
-    values.push(cur)
-    return Object.fromEntries(headers.map((h, i) => [h, values[i]?.trim() ?? '']))
-  })
 }
 
 export async function loadGraphFromDb(): Promise<{
