@@ -8,6 +8,23 @@ All browser-side JS. No Python. Uses native `fetch()` + `Promise.all()`.
 
 ---
 
+## Wikipedia Policy & Dev Process
+
+### Staying within safe limits
+- Always include a descriptive `User-Agent` header identifying the app (required by Wikipedia's API etiquette)
+- Never exceed ~10 concurrent requests at once — well under Wikipedia's soft cap
+- Respect `maxlag` — if the API returns a `maxlag` error, back off and retry after the suggested delay
+- The cache is the primary defence: once a title is fetched it is never re-fetched
+- No polling, no background prefetch, no speculative fetching — only fetch what the user is actively looking at
+
+### Dev process: all calls are manual
+During development **no fetch fires automatically**. The lazy-load hook is behind an explicit opt-in:
+- A visible "Load missing links" button triggers `onViewportIdle()` manually
+- The debounce-on-move hook is commented out until the feature is considered stable
+- This makes it easy to inspect exactly what gets fetched, when, and why — without accidentally hammering the API during development
+
+---
+
 ## Implementation
 
 ### 1. Debounce on camera idle (500ms)
