@@ -1,57 +1,53 @@
 import { create } from 'zustand'
-import { fetchLinks } from './wikipedia'
-import { buildGraphData, GraphData } from './graph'
+import { loadGraphFromDb } from './db'
+import { buildGraphDataFromRows, GraphData } from './graph'
 
-export type FetchStatus = 'idle' | 'fetching' | 'done' | 'error'
+export type FetchStatus = 'idle' | 'loading' | 'done' | 'error'
 
 export const SEED_ARTICLES = ['William James', 'William Blake']
 
 interface State {
-  seeds: string[]
-  linkMap: Map<string, string[]>
   showExpanded: boolean
   fetchStatus: FetchStatus
-  fetchProgress: { done: number; total: number }
   selectedNode: string | null
   hoveredNode: string | null
   graphData: GraphData | null
+  // raw rows for toggling expanded
+  allNodes: { id: string; node_type: string; wiki_url: string }[]
+  allEdges: { source: string; target: string }[]
 
-  fetchAllLinks: () => Promise<void>
+  loadData: () => Promise<void>
   toggleExpanded: () => void
   selectNode: (title: string | null) => void
   setHoveredNode: (title: string | null) => void
 }
 
 export const useStore = create<State>((set, get) => ({
-  seeds: SEED_ARTICLES,
-  linkMap: new Map(),
   showExpanded: false,
   fetchStatus: 'idle',
-  fetchProgress: { done: 0, total: 0 },
   selectedNode: null,
   hoveredNode: null,
   graphData: null,
+  allNodes: [],
+  allEdges: [],
 
-  fetchAllLinks: async () => {
-    const { seeds } = get()
-    set({ fetchStatus: 'fetching', fetchProgress: { done: 0, total: seeds.length } })
-    const linkMap = new Map<string, string[]>()
-    for (let i = 0; i < seeds.length; i++) {
-      try {
-        linkMap.set(seeds[i], await fetchLinks(seeds[i]))
-      } catch {
-        linkMap.set(seeds[i], [])
-      }
-      set({ fetchProgress: { done: i + 1, total: seeds.length } })
+  loadData: async () => {
+    set({ fetchStatus: 'loading' })
+    try {
+      const { nodes, edges } = await loadGraphFromDb()
+      const graphData = buildGraphDataFromRows(nodes, edges, get().showExpanded, SEED_ARTICLES)
+      set({ allNodes: nodes, allEdges: edges, graphData, fetchStatus: 'done' })
+    } catch (e) {
+      console.error(e)
+      set({ fetchStatus: 'error' })
     }
-    const graphData = buildGraphData(seeds, linkMap, get().showExpanded)
-    set({ linkMap, fetchStatus: 'done', graphData })
   },
 
   toggleExpanded: () => {
-    const { showExpanded, seeds, linkMap } = get()
+    const { showExpanded, allNodes, allEdges } = get()
     const next = !showExpanded
-    set({ showExpanded: next, graphData: buildGraphData(seeds, linkMap, next) })
+    const graphData = buildGraphDataFromRows(allNodes, allEdges, next, SEED_ARTICLES)
+    set({ showExpanded: next, graphData })
   },
 
   selectNode: (title) => set({ selectedNode: title }),
