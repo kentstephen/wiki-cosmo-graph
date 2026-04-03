@@ -23,7 +23,7 @@ interface State {
 }
 
 export const useStore = create<State>((set, get) => ({
-  showExpanded: false,
+  showExpanded: true,
   fetchStatus: 'idle',
   selectedNode: null,
   hoveredNode: null,
