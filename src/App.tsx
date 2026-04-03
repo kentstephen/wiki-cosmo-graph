@@ -22,14 +22,10 @@ export function App() {
       <NodePanel />
 
       <div style={{ position: 'absolute', top: 10, left: 10, color: '#ccc', fontSize: 10, userSelect: 'none', zIndex: 10 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>
-          {SEED_ARTICLES.join(' · ')}
-        </div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{SEED_ARTICLES.join(' · ')}</div>
 
         {fetchStatus === 'fetching' && (
-          <div style={{ color: '#888' }}>
-            fetching {fetchProgress.done} / {fetchProgress.total}
-          </div>
+          <div style={{ color: '#888' }}>fetching {fetchProgress.done} / {fetchProgress.total}</div>
         )}
 
         {fetchStatus === 'done' && (
@@ -37,16 +33,16 @@ export function App() {
             <div style={{ color: '#888', marginBottom: 4 }}>
               {nodeCount.toLocaleString()} nodes · {edgeCount.toLocaleString()} edges
             </div>
-            <div style={{ textDecoration: 'underline', cursor: 'pointer', marginLeft: 2 }} onClick={toggleExpanded}>
-              {showExpanded ? 'hide expanded' : 'show expanded'}
+            <div style={{ textDecoration: 'underline', cursor: 'pointer', marginBottom: 2 }} onClick={toggleExpanded}>
+              {showExpanded ? 'hide expanded nodes' : 'show expanded nodes'}
             </div>
           </>
         )}
       </div>
 
       {fetchStatus === 'done' && (
-        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#555', fontSize: 9, userSelect: 'none' }}>
-          click to inspect · double-click to open wikipedia
+        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#334155', fontSize: 9, userSelect: 'none' }}>
+          click to select · right-click to open wikipedia · drag to explore
         </div>
       )}
     </div>

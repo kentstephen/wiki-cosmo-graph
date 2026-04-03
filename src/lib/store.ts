@@ -13,20 +13,23 @@ interface State {
   fetchStatus: FetchStatus
   fetchProgress: { done: number; total: number }
   selectedNode: string | null
+  hoveredNode: string | null
   graphData: GraphData | null
 
   fetchAllLinks: () => Promise<void>
   toggleExpanded: () => void
   selectNode: (title: string | null) => void
+  setHoveredNode: (title: string | null) => void
 }
 
 export const useStore = create<State>((set, get) => ({
   seeds: SEED_ARTICLES,
   linkMap: new Map(),
-  showExpanded: true,
+  showExpanded: false,
   fetchStatus: 'idle',
   fetchProgress: { done: 0, total: 0 },
   selectedNode: null,
+  hoveredNode: null,
   graphData: null,
 
   fetchAllLinks: async () => {
@@ -35,8 +38,7 @@ export const useStore = create<State>((set, get) => ({
     const linkMap = new Map<string, string[]>()
     for (let i = 0; i < seeds.length; i++) {
       try {
-        const links = await fetchLinks(seeds[i])
-        linkMap.set(seeds[i], links)
+        linkMap.set(seeds[i], await fetchLinks(seeds[i]))
       } catch {
         linkMap.set(seeds[i], [])
       }
@@ -49,9 +51,9 @@ export const useStore = create<State>((set, get) => ({
   toggleExpanded: () => {
     const { showExpanded, seeds, linkMap } = get()
     const next = !showExpanded
-    const graphData = buildGraphData(seeds, linkMap, next)
-    set({ showExpanded: next, graphData })
+    set({ showExpanded: next, graphData: buildGraphData(seeds, linkMap, next) })
   },
 
   selectNode: (title) => set({ selectedNode: title }),
+  setHoveredNode: (title) => set({ hoveredNode: title }),
 }))

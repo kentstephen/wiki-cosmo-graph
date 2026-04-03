@@ -9,6 +9,7 @@ export function GraphView() {
   const nodesRef = useRef<string[]>([])
   const graphData = useStore(s => s.graphData)
   const selectNode = useStore(s => s.selectNode)
+  const setHoveredNode = useStore(s => s.setHoveredNode)
 
   useEffect(() => {
     nodesRef.current = graphData?.nodes ?? []
@@ -16,57 +17,76 @@ export function GraphView() {
 
   useEffect(() => {
     if (!containerRef.current) return
+
     const graph = new Graph(containerRef.current, {
-      spaceSize: 8192,
-      backgroundColor: '#2d313a',
-      pointDefaultColor: '#4B5BBF',
+      spaceSize: 4096,
+      backgroundColor: '#0f172a',
+      pointDefaultColor: '#60a5fa',
       pointDefaultSize: 4,
       scalePointsOnZoom: true,
-      linkDefaultColor: '#5F74C2',
-      linkDefaultWidth: 0.6,
+      linkDefaultColor: '#94a3b8',
+      linkDefaultWidth: 1.0,
       linkDefaultArrows: false,
-      curvedLinks: true,
+      curvedLinks: false,
       renderHoveredPointRing: true,
-      hoveredPointRingColor: '#4B5BBF',
-      pointGreyoutOpacity: 0.08,
-      linkGreyoutOpacity: 0.04,
+      hoveredPointRingColor: '#f0f9ff',
+      pointGreyoutOpacity: 0.05,
+      linkGreyoutOpacity: 0.02,
       enableDrag: true,
       rescalePositions: true,
-      fitViewDelay: 500,
-      fitViewPadding: 0.15,
+      fitViewOnInit: true,
+      fitViewDelay: 300,
+      fitViewPadding: 0.1,
       simulationGravity: 0.1,
       simulationRepulsion: 0.5,
       simulationLinkSpring: 2,
-      simulationFriction: 0.85,
+      simulationLinkDistance: 1,
+      simulationFriction: 0.7,
+      simulationDecay: 100000,
+      onSimulationEnd: () => { graph.pause() },
       onPointClick: (index) => {
-        if (index === undefined || index === null) { selectNode(null); return }
+        if (index == null) return
         const title = nodesRef.current[index]
-        if (title) selectNode(title)
+        if (!title) return
+        graph.selectPointByIndex(index, false)
+        graph.zoomToPointByIndex(index, 600, 3)
+        selectNode(title)
       },
-      onBackgroundClick: () => selectNode(null),
+      onPointMouseOver: (index) => {
+        if (index == null) return
+        setHoveredNode(nodesRef.current[index] ?? null)
+      },
+      onPointMouseOut: () => setHoveredNode(null),
+      onBackgroundClick: () => {
+        graph.unselectPoints()
+        selectNode(null)
+      },
+      attribution: 'visualized with <a href="https://cosmograph.app/" style="color: var(--cosmosgl-attribution-color);" target="_blank">Cosmograph</a>',
     })
+
     graphRef.current = graph
     graph.render()
     return () => { graph.destroy() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Double-click to open Wikipedia
+  // Right-click to open Wikipedia
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const onDblClick = () => {
+    const onContextMenu = (e: MouseEvent) => {
       const graph = graphRef.current
       if (!graph) return
       const idx = (graph as any).store?.hoveredPoint
       if (idx == null) return
+      e.preventDefault()
       const title = nodesRef.current[idx]
       if (title) window.open(wikiUrl(title), '_blank')
     }
-    el.addEventListener('dblclick', onDblClick)
-    return () => el.removeEventListener('dblclick', onDblClick)
+    el.addEventListener('contextmenu', onContextMenu)
+    return () => el.removeEventListener('contextmenu', onContextMenu)
   }, [])
 
-  // Push new data
+  // Update data
   useEffect(() => {
     const graph = graphRef.current
     if (!graph || !graphData) return

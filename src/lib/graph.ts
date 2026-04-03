@@ -9,11 +9,11 @@ export interface GraphData {
   linkColors: Float32Array
 }
 
-// cosmos.gl native colors
-const SEED_COLOR: [number, number, number, number]    = [0.294, 0.357, 0.749, 1.0]  // #4B5BBF
-const EXP_COLOR:  [number, number, number, number]    = [0.373, 0.455, 0.761, 0.6]  // #5F74C2 dimmed
-const LINK_COLOR: [number, number, number, number]    = [0.373, 0.455, 0.761, 0.3]  // #5F74C2
-const SEED_SIZE = 6
+// Match Jupyter notebook colors
+const SEED_COLOR:  [number, number, number, number] = [0.376, 0.647, 0.980, 1.0] // #60a5fa
+const EXP_COLOR:   [number, number, number, number] = [0.376, 0.647, 0.980, 0.5] // #60a5fa dimmed
+const LINK_COLOR:  [number, number, number, number] = [0.580, 0.639, 0.682, 0.3] // #94a3b8
+const SEED_SIZE = 8
 const EXP_SIZE  = 3
 
 export function buildGraphData(
@@ -34,11 +34,10 @@ export function buildGraphData(
   const nodeIndex = new Map(nodes.map((n, i) => [n, i]))
   const nodeTypes: ('seed' | 'expanded')[] = nodes.map(n => seedSet.has(n) ? 'seed' : 'expanded')
 
-  // Random initial positions — rescalePositions:true in cosmos will normalize them
   const pointPositions = new Float32Array(nodes.length * 2)
   for (let i = 0; i < nodes.length; i++) {
-    pointPositions[i * 2]     = Math.random()
-    pointPositions[i * 2 + 1] = Math.random()
+    pointPositions[i * 2]     = (Math.random() - 0.5) * 2
+    pointPositions[i * 2 + 1] = (Math.random() - 0.5) * 2
   }
 
   const pointSizes = new Float32Array(nodes.map(n => seedSet.has(n) ? SEED_SIZE : EXP_SIZE))
@@ -46,13 +45,10 @@ export function buildGraphData(
   const pointColors = new Float32Array(nodes.length * 4)
   nodes.forEach((n, i) => {
     const c = seedSet.has(n) ? SEED_COLOR : EXP_COLOR
-    pointColors[i * 4]     = c[0]
-    pointColors[i * 4 + 1] = c[1]
-    pointColors[i * 4 + 2] = c[2]
-    pointColors[i * 4 + 3] = c[3]
+    pointColors.set(c, i * 4)
   })
 
-  // Build edges
+  // Build edges — only between nodes in the current set
   const edgeSet = new Set<string>()
   const edges: [number, number][] = []
   for (const [src, links] of linkMap) {
@@ -61,7 +57,7 @@ export function buildGraphData(
     for (const tgt of links) {
       const ti = nodeIndex.get(tgt)
       if (ti === undefined) continue
-      const key = `${Math.min(si, ti)}-${Math.max(si, ti)}`
+      const key = si < ti ? `${si}-${ti}` : `${ti}-${si}`
       if (!edgeSet.has(key)) {
         edgeSet.add(key)
         edges.push([si, ti])
@@ -73,12 +69,7 @@ export function buildGraphData(
   edges.forEach(([s, t], i) => { linkIndexes[i * 2] = s; linkIndexes[i * 2 + 1] = t })
 
   const linkColors = new Float32Array(edges.length * 4)
-  for (let i = 0; i < edges.length; i++) {
-    linkColors[i * 4]     = LINK_COLOR[0]
-    linkColors[i * 4 + 1] = LINK_COLOR[1]
-    linkColors[i * 4 + 2] = LINK_COLOR[2]
-    linkColors[i * 4 + 3] = LINK_COLOR[3]
-  }
+  for (let i = 0; i < edges.length; i++) linkColors.set(LINK_COLOR, i * 4)
 
   return { nodes, nodeTypes, edges, pointPositions, pointSizes, pointColors, linkIndexes, linkColors }
 }
