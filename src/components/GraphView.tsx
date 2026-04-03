@@ -61,7 +61,7 @@ export function GraphView() {
         graph.unselectPoints()
         selectNode(null)
       },
-      attribution: 'visualized with <a href="https://cosmograph.app/" style="color: var(--cosmosgl-attribution-color);" target="_blank">Cosmograph</a>',
+      attribution: '',
     })
 
     graphRef.current = graph
