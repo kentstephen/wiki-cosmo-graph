@@ -1,68 +1,54 @@
-import { useStore } from './lib/store'
-import { FileDropzone } from './components/FileDropzone'
+import { useEffect } from 'react'
+import { useStore, SEED_ARTICLES } from './lib/store'
 import { GraphView } from './components/GraphView'
 import { NodePanel } from './components/NodePanel'
 
 export function App() {
+  const fetchAllLinks = useStore(s => s.fetchAllLinks)
   const fetchStatus = useStore(s => s.fetchStatus)
+  const fetchProgress = useStore(s => s.fetchProgress)
   const showExpanded = useStore(s => s.showExpanded)
   const toggleExpanded = useStore(s => s.toggleExpanded)
   const graphData = useStore(s => s.graphData)
-  const seeds = useStore(s => s.seeds)
+
+  useEffect(() => { fetchAllLinks() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const nodeCount = graphData?.nodes.length ?? 0
   const edgeCount = graphData?.edges.length ?? 0
-  const seedCount = seeds.length
-  const expandedCount = nodeCount - seedCount
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', fontFamily: '"Nunito Sans", -apple-system, sans-serif' }}>
       <GraphView />
-      <FileDropzone />
       <NodePanel />
 
+      <div style={{ position: 'absolute', top: 10, left: 10, color: '#ccc', fontSize: 10, userSelect: 'none', zIndex: 10 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+          {SEED_ARTICLES.join(' · ')}
+        </div>
+
+        {fetchStatus === 'fetching' && (
+          <div style={{ color: '#888' }}>
+            fetching {fetchProgress.done} / {fetchProgress.total}
+          </div>
+        )}
+
+        {fetchStatus === 'done' && (
+          <>
+            <div style={{ color: '#888', marginBottom: 4 }}>
+              {nodeCount.toLocaleString()} nodes · {edgeCount.toLocaleString()} edges
+            </div>
+            <div style={{ textDecoration: 'underline', cursor: 'pointer', marginLeft: 2 }} onClick={toggleExpanded}>
+              {showExpanded ? 'hide expanded' : 'show expanded'}
+            </div>
+          </>
+        )}
+      </div>
+
       {fetchStatus === 'done' && (
-        <div style={toolbar}>
-          <span style={stat}>{nodeCount.toLocaleString()} nodes</span>
-          <span style={divider} />
-          <span style={stat}>{edgeCount.toLocaleString()} edges</span>
-          {expandedCount > 0 && (
-            <>
-              <span style={divider} />
-              <span style={{ ...stat, color: '#a78bfa' }}>{expandedCount.toLocaleString()} expanded</span>
-            </>
-          )}
-          <span style={divider} />
-          <button style={toggleBtn(showExpanded)} onClick={toggleExpanded}>
-            {showExpanded ? 'Hide expanded' : 'Show expanded nodes'}
-          </button>
+        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#555', fontSize: 9, userSelect: 'none' }}>
+          click to inspect · double-click to open wikipedia
         </div>
       )}
-
-      <div style={hint}>
-        Click node to inspect · Double-click to open Wikipedia
-      </div>
     </div>
   )
 }
-
-const toolbar: React.CSSProperties = {
-  position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-  background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8,
-  padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
-  fontSize: 12, color: '#94a3b8', zIndex: 20,
-}
-const stat: React.CSSProperties = { color: '#e2e8f0' }
-const divider: React.CSSProperties = {
-  width: 1, height: 14, background: '#1e293b',
-}
-const hint: React.CSSProperties = {
-  position: 'absolute', bottom: 20, right: 16, fontSize: 11,
-  color: '#334155', zIndex: 5,
-}
-const toggleBtn = (active: boolean): React.CSSProperties => ({
-  background: active ? '#4c1d95' : '#1e293b',
-  color: active ? '#c4b5fd' : '#64748b',
-  border: 'none', borderRadius: 5, padding: '4px 10px',
-  fontSize: 11, cursor: 'pointer',
-})

@@ -25,3 +25,6 @@ python/__pycache__/
 # JS app
 node_modules/
 dist/
+
+# cosmogl-graph reference clone (local only)
+cosmogl-graph/
