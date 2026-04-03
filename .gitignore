@@ -17,3 +17,11 @@ wheels/
 
 # Jupyter checkpoints
 .ipynb_checkpoints/
+
+# Python (deprecated)
+python/.venv/
+python/__pycache__/
+
+# JS app
+node_modules/
+dist/

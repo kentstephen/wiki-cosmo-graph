@@ -1,11 +1,66 @@
 # TODO's
-- i want every internal link to be paired from these articles if there is a match.
-- initialize a git repo which can be private for now, but we can move on the current workload to main
-- i want links to be clickable for earch node, and i want a all links to be pickable. the edges should be more visible and i I'd like more interactivef features like hightlight all of the links to nodes when clicked.
-- what if i want to see all the article's that are connected to these. we should probably use arrow for that (i think cosmo already does but i meant to load). Check with me about that. we could highlight the ones i started with. would be nice to have some widgets for this to toggle the missing links on and off and build a network (that is add nodes) maybe marimo is better if it is compatible. don't mind using huggingface for this.
-- i'd like to use fullscreen in jupyter in vscode but that may be limited to jupyterlab, another reason to look into marimo, in fact i will be using the browser when i click on the links to read.
-- might want to upgrade to the browser app at some point
-* please follow up if you have questions
+
+## ⚠️ DIRECTION CHANGE — All-Browser App (SQLRooms + cosmos.gl)
+
+**All Python notebooks are DEPRECATED.** `graph.ipynb`, `graph.py`, `main.py` are legacy and will be removed when the browser app is built.
+
+### New Architecture (fully browser-side, no server, no Python)
+1. **File drop** — user drops any CSV or Parquet containing Wikipedia article URLs into the browser
+2. **DuckDB-WASM** — reads the file in-browser, extracts Wikipedia article titles from URLs
+3. **Wikipedia PHP API (CORS-compliant)** — browser calls `https://en.wikipedia.org/w/api.php?origin=*` directly to fetch internal links for each seed article
+4. **Optional gap-fill** — same API call, fetches links for articles connected to seeds; cosmos.gl handles large graphs natively via GPU; toggle expanded nodes on/off. Inspired by [6 Degrees of Wikipedia](https://www.sixdegreesofwikipedia.com/) — could let users choose hop depth or a node count cap, with a warning that going deep is at their own risk (graph gets very large very fast)
+   - **Pre-query metadata** — before a large expansion, do a lightweight API pass to collect signal: how many new nodes would be added, which candidate articles are linked to by the most seeds (high connectivity = more meaningful), categories of candidate articles. Surface this to the user so they can make an informed decision or filter before committing to the full fetch.
+   - **Drill-down granularity** — as the user explores deeper (selecting a node, expanding a subgraph), the metadata should get more specific: e.g. which articles does *this* node link to, how many of those are already in the graph vs new, what categories do they fall into. Progressively richer context as you go deeper, not just top-level counts.
+5. **cosmos.gl via `@sqlrooms/cosmos`** — renders the force graph entirely in-browser
+6. **Click node** → opens Wikipedia article URL in new tab
+7. **Click node** → highlights all connected edges + neighbor nodes
+8. **Toggle** expanded/gap-fill nodes on/off
+
+### Wikipedia Browser API Details
+
+**Base URL:** `https://en.wikipedia.org/w/api.php`
+**CORS:** Add `origin=*` to any request — Wikipedia sets `Access-Control-Allow-Origin` header, works directly from browser with no proxy needed. No auth required for read operations.
+
+**Key endpoints for this app:**
+
+| Use | Params |
+|---|---|
+| Internal links from article | `action=query&prop=links&titles=<title>&pllimit=max&plnamespace=0&format=json&origin=*` |
+| Backlinks to article | `action=query&list=backlinks&bltitle=<title>&bllimit=max&format=json&origin=*` |
+| Page metadata (link count, size) | `action=query&prop=info&titles=<title>&format=json&origin=*` |
+| Categories | `action=query&prop=categories&titles=<title>&cllimit=max&format=json&origin=*` |
+| Parse wikitext to HTML | `action=parse&prop=text&page=<title>&format=json&origin=*` |
+| Multiple titles at once | `titles=Title1|Title2|Title3` (up to 50 per request) |
+
+**Pagination:** responses include a `continue` object when there are more results — re-request with those params merged in until no `continue` is returned.
+
+**Rate limits:** generous for anonymous read-only (~200 req/s per IP). Recommend a small delay (100ms) between requests to be polite.
+
+**Pre-query metadata pattern:** use `prop=info` first — returns link counts and page size without fetching actual links. Use this to show users "this expansion would add ~N nodes" before they commit to a full `prop=links` fetch.
+
+**Data flow for this app:**
+1. User drops CSV → DuckDB-WASM extracts Wikipedia titles from URLs
+2. Batch fetch `prop=links` for all seed titles (50 at a time via `titles=A|B|C`)
+3. Build edges where seed articles mutually link to each other
+4. Optional gap-fill: fetch `prop=links` for expanded nodes; pre-flight with `prop=info` to show scope first
+5. cosmos.gl renders — all in browser, nothing leaves the machine
+
+### Reference: Observable Notebooks (Mike Bostock)
+- https://observablehq.com/@mbostock/working-with-wikipedia-data
+- https://observablehq.com/@mbostock/wikipedia-recent-changes
+
+Study these for browser-side Wikipedia API patterns before building.
+
+### When ready to build
+- New directory (or new repo) for the JS/React app
+- Stack: SQLRooms + `@sqlrooms/cosmos` + DuckDB-WASM + React
+- Reference: https://github.com/sqlrooms/sqlrooms, https://github.com/jjballano/sqlrooms-examples
+- cosmos.gl (OpenJS, MIT): https://github.com/cosmograph-org/cosmos
+- Do NOT use `@cosmograph/cosmograph` (no license)
+- Seed articles visually distinct from expanded nodes
+
+### Legacy TODOs (Python era — no longer relevant)
+- ~~clickable nodes, highlight edges, Marimo, ipywidgets, HuggingFace, fullscreen Jupyter~~
 
 ---
 
