@@ -41,8 +41,8 @@ export function GraphView() {
       simulationRepulsion: 0.5,
       simulationLinkSpring: 2,
       simulationLinkDistance: 1,
-      simulationFriction: 0.7,
-      simulationDecay: 100000,
+      simulationFriction: 0.85,
+      simulationDecay: 10000000,
       onSimulationEnd: () => { graph.pause() },
       onPointClick: (index) => {
         if (index == null) return
