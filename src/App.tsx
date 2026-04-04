@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useStore, SEED_ARTICLES } from './lib/store'
 import { GraphView } from './components/GraphView'
-import { NodePanel } from './components/NodePanel'
 
 export function App() {
   const loadData = useStore(s => s.loadData)
@@ -16,7 +15,6 @@ export function App() {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', fontFamily: '"Nunito Sans", -apple-system, sans-serif' }}>
       <GraphView />
-      <NodePanel />
 
       <div style={{ position: 'absolute', top: 10, left: 10, color: '#ccc', fontSize: 13, userSelect: 'none', zIndex: 10 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>{SEED_ARTICLES.join(' · ')}</div>
@@ -40,7 +38,7 @@ export function App() {
 
       {fetchStatus === 'done' && (
         <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#334155', fontSize: 11, userSelect: 'none' }}>
-          click to select · right-click to open wikipedia · drag to explore
+          hover to highlight · click to drill down · right-click to open wikipedia · esc to go back
         </div>
       )}
     </div>

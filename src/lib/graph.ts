@@ -1,4 +1,4 @@
-import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force'
+import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force'
 
 export interface GraphData {
   nodes: string[]
@@ -13,11 +13,12 @@ export interface GraphData {
   adjacency: Map<number, number[]>
 }
 
-const LINK_COLOR:  [number, number, number, number] = [0.373, 0.455, 0.761, 0.15]
+// Palette
+const LINK_COLOR:  [number, number, number, number] = [0.78, 0.78, 0.82, 0.35] // white silver
 const MIN_SIZE = 1
 const MAX_SIZE = 8
 const SEED_SIZE = 14
-const SEED_COLOR: [number, number, number, number] = [1.0, 0.75, 0.2, 1.0] // gold/amber
+const SEED_COLOR: [number, number, number, number] = [0.8, 0.2, 0.4, 1.0] // ruby/crimson for seeds
 
 // Utility/infrastructure Wikipedia pages to filter out
 const FILTERED_NODES = new Set([
@@ -26,13 +27,13 @@ const FILTERED_NODES = new Set([
   'S2CID (identifier)', 'Wayback Machine',
 ])
 
-// 50-step continuous colormap using the original cosmos purple-blue palette
+// Shades of gold: dark gold (low degree) → bright gold (high degree)
 const COLORMAP = buildColormap(50, [
-  [0.18, 0.22, 0.50],  // dark indigo — low degree
-  [0.294, 0.357, 0.749], // #4B5BBF
-  [0.373, 0.455, 0.761], // #5F74C2
-  [0.55, 0.65, 0.90],   // lighter periwinkle
-  [0.80, 0.85, 1.00],   // near-white lavender — high degree
+  [0.45, 0.38, 0.15],  // dark bronze-gold — low degree
+  [0.65, 0.55, 0.20],  // warm gold
+  [0.80, 0.68, 0.28],  // mid gold
+  [0.92, 0.80, 0.35],  // bright gold
+  [1.00, 0.90, 0.50],  // light gold — high degree
 ])
 
 function buildColormap(steps: number, stops: [number, number, number][]): [number, number, number, number][] {
@@ -57,32 +58,6 @@ function buildColormap(steps: number, stops: [number, number, number][]): [numbe
 function lerpColor(t: number): [number, number, number, number] {
   const idx = Math.round(Math.max(0, Math.min(1, t)) * (COLORMAP.length - 1))
   return COLORMAP[idx]
-}
-
-/** BFS shortest path from `start` to any node in `targets`. Returns index array or null. */
-export function findPath(adjacency: Map<number, number[]>, start: number, targets: Set<number>): number[] | null {
-  if (targets.has(start)) return [start]
-  const visited = new Set<number>([start])
-  const parent = new Map<number, number>()
-  const queue = [start]
-  let head = 0
-  while (head < queue.length) {
-    const cur = queue[head++]
-    for (const nb of adjacency.get(cur) ?? []) {
-      if (visited.has(nb)) continue
-      visited.add(nb)
-      parent.set(nb, cur)
-      if (targets.has(nb)) {
-        // reconstruct
-        const path = [nb]
-        let p = nb
-        while (parent.has(p)) { p = parent.get(p)!; path.push(p) }
-        return path.reverse()
-      }
-      queue.push(nb)
-    }
-  }
-  return null
 }
 
 export function buildGraphDataFromRows(
@@ -119,7 +94,7 @@ export function buildGraphDataFromRows(
     }
   }
 
-  // Build adjacency list for path finding
+  // Build adjacency list
   const adjacency = new Map<number, number[]>()
   for (const [s, t] of edges) {
     if (!adjacency.has(s)) adjacency.set(s, [])
@@ -184,12 +159,12 @@ export function buildGraphDataFromRows(
   return { nodes, nodeUrls, nodeTypes, edges, pointPositions, pointSizes, pointColors, linkIndexes, linkColors, adjacency }
 }
 
-const PATH_NODE_COLOR: [number, number, number, number] = [0.55, 0.65, 0.90, 0.9]
-const PATH_LINK_COLOR: [number, number, number, number] = [0.55, 0.65, 0.90, 0.5]
-const SELECTED_COLOR: [number, number, number, number] = [1.0, 0.55, 0.2, 1.0] // orange for selected node
+const NEIGHBOR_COLOR: [number, number, number, number] = [0.80, 0.68, 0.28, 0.9] // gold
+const NEIGHBOR_LINK_COLOR: [number, number, number, number] = [0.78, 0.78, 0.82, 0.4] // white silver
+const SELECTED_COLOR: [number, number, number, number] = [1.00, 0.90, 0.50, 1.0] // bright gold for selected
 
-/** Build a small subgraph containing only the BFS paths from `selected` to each seed. */
-export function buildPathSubgraph(
+/** Build a subgraph of the selected node + its direct neighbors. */
+export function buildNeighborhoodSubgraph(
   fullGraph: GraphData,
   selected: string,
   seeds: string[],
@@ -198,36 +173,23 @@ export function buildPathSubgraph(
   const startIdx = fullGraph.nodes.indexOf(selected)
   if (startIdx < 0) return null
 
-  // Collect all path nodes
-  const pathNodeIndices = new Set<number>([startIdx])
-  const pathEdgePairs: [number, number][] = []
+  const neighborIndices = fullGraph.adjacency.get(startIdx) ?? []
+  if (neighborIndices.length === 0) return null
 
-  for (const seed of seeds) {
-    const seedIdx = fullGraph.nodes.indexOf(seed)
-    if (seedIdx < 0 || seedIdx === startIdx) continue
-    const path = findPath(fullGraph.adjacency, startIdx, new Set([seedIdx]))
-    if (!path) continue
-    for (const n of path) pathNodeIndices.add(n)
-    for (let i = 0; i < path.length - 1; i++) {
-      pathEdgePairs.push([path[i], path[i + 1]])
-    }
-  }
+  const subgraphIndices = new Set<number>([startIdx, ...neighborIndices])
 
-  if (pathNodeIndices.size <= 1) return null
-
-  // Map old indices → new indices
   const oldToNew = new Map<number, number>()
-  const sortedOld = Array.from(pathNodeIndices).sort((a, b) => a - b)
+  const sortedOld = Array.from(subgraphIndices).sort((a, b) => a - b)
   sortedOld.forEach((oldIdx, newIdx) => oldToNew.set(oldIdx, newIdx))
 
   const nodes = sortedOld.map(i => fullGraph.nodes[i])
   const nodeUrls = sortedOld.map(i => fullGraph.nodeUrls[i])
   const nodeTypes = sortedOld.map(i => fullGraph.nodeTypes[i])
 
-  // Deduplicate edges
   const edgeSet = new Set<string>()
   const edges: [number, number][] = []
-  for (const [a, b] of pathEdgePairs) {
+  for (const [a, b] of fullGraph.edges) {
+    if (!subgraphIndices.has(a) || !subgraphIndices.has(b)) continue
     const na = oldToNew.get(a)!
     const nb = oldToNew.get(b)!
     const key = na < nb ? `${na}-${nb}` : `${nb}-${na}`
@@ -237,7 +199,6 @@ export function buildPathSubgraph(
     }
   }
 
-  // Adjacency for the subgraph
   const adjacency = new Map<number, number[]>()
   for (const [s, t] of edges) {
     if (!adjacency.has(s)) adjacency.set(s, [])
@@ -246,33 +207,41 @@ export function buildPathSubgraph(
     adjacency.get(t)!.push(s)
   }
 
-  // Colors and sizes
+  // Scale node sizes down for large neighborhoods
+  const n = nodes.length
+  const baseSize = n > 200 ? 3 : n > 50 ? 4 : 6
+  const selectedSize = n > 200 ? 6 : n > 50 ? 8 : 12
+
   const pointSizes = new Float32Array(nodes.length)
   const pointColors = new Float32Array(nodes.length * 4)
   for (let i = 0; i < nodes.length; i++) {
-    if (seedSet.has(nodes[i])) {
-      pointSizes[i] = SEED_SIZE
-      pointColors.set(SEED_COLOR, i * 4)
-    } else if (nodes[i] === selected) {
-      pointSizes[i] = 12
+    if (nodes[i] === selected) {
+      pointSizes[i] = selectedSize
       pointColors.set(SELECTED_COLOR, i * 4)
+    } else if (seedSet.has(nodes[i])) {
+      pointSizes[i] = selectedSize
+      pointColors.set(SEED_COLOR, i * 4)
     } else {
-      pointSizes[i] = 6
-      pointColors.set(PATH_NODE_COLOR, i * 4)
+      pointSizes[i] = baseSize
+      pointColors.set(NEIGHBOR_COLOR, i * 4)
     }
   }
 
-  // Force layout for the small subgraph — spread it out nicely
-  const simNodes = nodes.map(() => ({} as { x?: number; y?: number }))
+  const simNodes = nodes.map((_, i) => ({ radius: pointSizes[i] } as { x?: number; y?: number; radius: number }))
   const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
 
+  const repulsion = n > 200 ? -800 : n > 50 ? -500 : -400
+  const linkDist = n > 200 ? 200 : n > 50 ? 150 : 120
+
   const sim = forceSimulation(simNodes as any)
-    .force('link', forceLink(simLinks).strength(0.3).distance(120))
-    .force('charge', forceManyBody().strength(-400))
+    .force('link', forceLink(simLinks).strength(0.1).distance(linkDist))
+    .force('charge', forceManyBody().strength(repulsion))
     .force('center', forceCenter(0, 0))
+    .force('collide', forceCollide<any>().radius((d: any) => (d.radius ?? 6) + 4).strength(0.8))
     .stop()
 
-  for (let i = 0; i < 300; i++) sim.tick()
+  const ticks = n > 200 ? 600 : 400
+  for (let i = 0; i < ticks; i++) sim.tick()
 
   const pointPositions = new Float32Array(nodes.length * 2)
   for (let i = 0; i < nodes.length; i++) {
@@ -284,7 +253,7 @@ export function buildPathSubgraph(
   edges.forEach(([s, t], i) => { linkIndexes[i * 2] = s; linkIndexes[i * 2 + 1] = t })
 
   const linkColors = new Float32Array(edges.length * 4)
-  for (let i = 0; i < edges.length; i++) linkColors.set(PATH_LINK_COLOR, i * 4)
+  for (let i = 0; i < edges.length; i++) linkColors.set(NEIGHBOR_LINK_COLOR, i * 4)
 
   return { nodes, nodeUrls, nodeTypes, edges, pointPositions, pointSizes, pointColors, linkIndexes, linkColors, adjacency }
 }

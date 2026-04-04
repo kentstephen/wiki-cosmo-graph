@@ -32,6 +32,37 @@ pointDefaultSize: 3, linkDefaultWidth: 0.8
 ### Attribution
 - Every story includes: `attribution: 'visualized with <a href="https://cosmograph.app/" ...>Cosmograph</a>'`
 
+## Session Notes (2026-04-03) — cosmos-william-james-blake-static
+
+### What was done (04-03)
+- Rank-based continuous 50-step colormap for even node size/color distribution
+- Seed nodes (William James, William Blake) rendered distinctly from expanded nodes
+- Filtered out 8 Wikipedia utility nodes (ISBN, JSTOR, Wayback, OCLC, DOI, PMID, S2CID, ISSN) and ~5,700 noisy edges
+- Escape key exits drill-down view
+
+### What was done (04-04) — simplified subgraph drill-down
+- **Removed** BFS path subgraph (`buildPathSubgraph`, `findPath`) — was too complex and confusing
+- **Removed** NodePanel entirely — side panel with neighbor lists was unhelpful noise
+- **New interaction model** (graph is the whole interface):
+  - **Full graph**: hover highlights node + neighbors (via `selectPointByIndex`), tooltip shows name. Click drills into neighborhood subgraph.
+  - **Subgraph**: completely static — no highlighting, no greyout, no hover ring. Hover only shows tooltip. Click opens Wikipedia. "Open {name} in Wikipedia" link at top right. Back button + Escape to return.
+  - Right-click always opens Wikipedia (both views)
+- **New color palette**: shades of gold for nodes (dark bronze → bright gold by degree), ruby/crimson for seeds, white-silver edges, dark background `#111318`
+- **Subgraph layout improvements**: `forceCollide` based on node radius to prevent overlap, adaptive force params based on node count (stronger repulsion + larger link distance for 200+ node neighborhoods), smaller node sizes for large neighborhoods
+- **Tooltip fix**: clears properly on mouse move by checking cosmos `store.hoveredPoint` directly
+
+### Key design decisions (IMPORTANT — do not re-propose)
+- **No side panel** — Stephen found it confusing and unhelpful. The graph IS the interface.
+- **Subgraph must be static** — no highlighting, no greyout, no visual changes on hover/click. Just nodes, edges, tooltip.
+- **Click in subgraph = open Wikipedia** — not drill deeper, not re-trigger subgraph. Static view, click opens article.
+- **Do NOT rebuild subgraph on click within subgraph** — this was explicitly rejected multiple times
+- **Do NOT add complex UI overlays** — keep it minimal: tooltip, back button, Wikipedia link
+
+### Longer-term: build graph with this tool
+- The full browser app vision (file drop → Wikipedia API → graph construction) from STEPHENS-TODO.md
+- SQLRooms / cosmos.gl / DuckDB-WASM stack
+- Stephen wants to build a tool he can use himself to create connections and explore data
+
 ## Current Direction (updated 2026-04-03)
 
 **All Python notebooks are deprecated.** Building a browser-side visualization of a Wikipedia entity network.
