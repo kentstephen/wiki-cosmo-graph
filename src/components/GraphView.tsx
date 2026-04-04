@@ -18,6 +18,8 @@ export function GraphView() {
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
 
   const navStackRef = useRef<string[]>([])
+  // Save the camera transform before drilling down so we can restore it on goBack
+  const savedTransformRef = useRef<any>(null)
 
   useEffect(() => {
     nodesRef.current = graphData?.nodes ?? []
@@ -95,6 +97,12 @@ export function GraphView() {
           window.open(wikiUrl(title), '_blank')
           return
         }
+        // Save camera transform before drilling down
+        const g = graphRef.current as any
+        if (g?.zoomInstance?.eventTransform) {
+          const t = g.zoomInstance.eventTransform
+          savedTransformRef.current = { k: t.k, x: t.x, y: t.y }
+        }
         drillDown(title)
       },
       onBackgroundClick: () => {
@@ -137,6 +145,9 @@ export function GraphView() {
     const graph = graphRef.current
     if (!graph || !graphData) return
     const isDrilled = navStackRef.current.length > 0
+    // Capture and clear saved transform before async rAF
+    const savedCameraTransform = !isDrilled ? savedTransformRef.current : null
+    if (savedCameraTransform) savedTransformRef.current = null
     // In subgraph: no greyout, no hover ring — just static nodes
     graph.setConfig({
       pointGreyoutOpacity: isDrilled ? 1.0 : 0.08,
@@ -154,7 +165,20 @@ export function GraphView() {
       graph.setLinks(graphData.linkIndexes)
       graph.setLinkColors(graphData.linkColors)
       graph.render(0)
-      setTimeout(() => graph.fitView(300), 50)
+      if (savedCameraTransform) {
+        // Restore the camera position from before drill-down
+        const g = graph as any
+        if (g.canvasD3Selection && g.zoomInstance?.behavior) {
+          // Construct a d3 ZoomTransform from the saved values using the existing transform's constructor
+          const ZoomTransform = g.zoomInstance.eventTransform.constructor
+          const t = new ZoomTransform(savedCameraTransform.k, savedCameraTransform.x, savedCameraTransform.y)
+          setTimeout(() => {
+            g.canvasD3Selection.call(g.zoomInstance.behavior.transform, t)
+          }, 50)
+        }
+      } else {
+        setTimeout(() => graph.fitView(300), 50)
+      }
     })
   }, [graphData])
 
