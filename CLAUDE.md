@@ -1,22 +1,22 @@
-# Project: Biblical Entity Force Graph
+# Project: Wikipedia Knowledge Graph
 
 ## Overview
-This project visualizes relationships between biblical (and related) entities using force-directed graphs. Data is sourced from Wikipedia via raindrop.io bookmarks and the Wikipedia PHP API, rendered using Cosmograph in Jupyter notebooks.
+Static force-directed graph visualization of Wikipedia article link neighborhoods. Currently seeded with William James and William Blake. Built for personal enjoyment/exploration.
 
 ## Stack
-- **Visualization**: [cosmograph-org](https://github.com/cosmograph-org/) Python library for force graph rendering
-- **Notebooks**: Jupyter notebooks as the primary interface
-- **Data sources**:
-  - Wikipedia article links (via raindrop.io collections)
-  - Wikipedia PHP API for internal link relations between articles
-- **Package manager**: `uv`
-- **Python version**: 3.12
+- **Visualization**: [cosmos.gl](https://github.com/cosmograph-org/) (`@cosmos.gl/graph`) — GPU-accelerated WebGL graph rendering
+- **Layout**: d3-force (static, pre-computed positions — no live simulation)
+- **Framework**: React 18 + TypeScript + Vite
+- **State**: Zustand
+- **Data**: Static `graph.json` in `/public` (pre-fetched nodes + edges)
 
-## Data Pipeline
-1. Pull Wikipedia article URLs from raindrop.io
-2. Use the Wikipedia PHP API to fetch internal links between articles
-3. Build a graph of nodes (entities) and edges (link relations)
-4. Render with Cosmograph force graph
+## Architecture
+- `src/lib/wikipedia.ts` — Wikipedia API client (concurrent fetching with 6-worker pool)
+- `src/lib/graph.ts` — Graph data structures, d3-force layout, rank-based coloring
+- `src/lib/store.ts` — Zustand state (navigation, hover, graph data)
+- `src/lib/db.ts` — Data loading (fetches graph.json)
+- `src/components/GraphView.tsx` — cosmos.gl rendering + interaction
+- `src/App.tsx` — Root component, UI chrome
 
 ## Wikipedia PHP API
 Base URL: `https://en.wikipedia.org/w/api.php`
@@ -26,13 +26,13 @@ Useful endpoints:
 - Backlinks to an article: `?action=query&list=backlinks&bltitle=<title>&bllimit=max&format=json`
 - Page categories: `?action=query&prop=categories&titles=<title>&format=json`
 
-## Cosmograph Usage
-- Use `cosmograph` Python package from [cosmograph-org](https://github.com/cosmograph-org/)
-- Nodes represent Wikipedia articles/entities
-- Edges represent internal Wikipedia link relationships
-- Node/edge data passed as pandas DataFrames or dicts
+## Design Decisions
+- Graph is the interface — no side panels
+- Static subgraphs — no hover effects or greyout in drill-down view
+- Seed nodes always ruby/crimson, expanded nodes gold (rank-based by degree)
+- Click drills down on full graph, opens Wikipedia on subgraph
+- Pre-computed d3-force positions, render(0) — graph never moves
 
-## Conventions
-- Keep data fetching, graph building, and visualization in separate notebook cells or modules
-- Cache API responses locally to avoid redundant requests
-- Node IDs should use Wikipedia article titles (URL-decoded)
+## TODO
+- Allow users to create their own graphs by entering seed articles, using the Wikipedia API + `buildGraphFromSeeds()` to fetch and build graphs dynamically in-browser
+- Build graphs and export them (format/mechanism TBD)
