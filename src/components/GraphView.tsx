@@ -34,22 +34,11 @@ export function GraphView() {
       linkGreyoutOpacity: 0.02,
       enableDrag: true,
       rescalePositions: true,
-      simulationGravity: 0.1,
-      simulationRepulsion: 0.5,
-      simulationLinkSpring: 2,
-      simulationLinkDistance: 1,
-      simulationFriction: 0.1,
-      simulationDecay: 10000000,
-      onSimulationEnd: () => {
-        graph.pause()
-        graph.fitView(500)
-      },
       onPointClick: (index) => {
         if (index == null) return
         const title = nodesRef.current[index]
         if (!title) return
         graph.selectPointByIndex(index, false)
-        graph.zoomToPointByIndex(index, 600, 3)
         selectNode(title)
       },
       onPointMouseOver: (index) => {
@@ -94,7 +83,8 @@ export function GraphView() {
     graph.setPointSizes(graphData.pointSizes)
     graph.setLinks(graphData.linkIndexes)
     graph.setLinkColors(graphData.linkColors)
-    graph.render()
+    graph.render(0)
+    setTimeout(() => graph.fitView(0), 100)
   }, [graphData])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100vh' }} />

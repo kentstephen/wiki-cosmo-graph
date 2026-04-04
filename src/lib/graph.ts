@@ -1,3 +1,5 @@
+import { forceSimulation, forceLink, forceManyBody, forceCenter } from 'd3-force'
+
 export interface GraphData {
   nodes: string[]
   nodeUrls: string[]
@@ -33,12 +35,6 @@ export function buildGraphDataFromRows(
   const nodeTypes = visibleNodes.map(n => seedSet.has(n.id) ? 'seed' : 'expanded') as ('seed' | 'expanded')[]
   const nodeIndex = new Map(nodes.map((n, i) => [n, i]))
 
-  const pointPositions = new Float32Array(nodes.length * 2)
-  for (let i = 0; i < nodes.length; i++) {
-    pointPositions[i * 2]     = (Math.random() - 0.5) * 2
-    pointPositions[i * 2 + 1] = (Math.random() - 0.5) * 2
-  }
-
   const pointSizes = new Float32Array(nodes.map(n => seedSet.has(n) ? SEED_SIZE : EXP_SIZE))
 
   const pointColors = new Float32Array(nodes.length * 4)
@@ -55,6 +51,24 @@ export function buildGraphDataFromRows(
       edgeSet.add(key)
       edges.push([si, ti])
     }
+  }
+
+  // Pre-compute positions with d3-force (static — no live simulation)
+  const simNodes = nodes.map(() => ({} as { x?: number; y?: number }))
+  const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
+
+  const sim = forceSimulation(simNodes as any)
+    .force('link', forceLink(simLinks).strength(0.05).distance(50))
+    .force('charge', forceManyBody().strength(-200))
+    .force('center', forceCenter(0, 0))
+    .stop()
+
+  for (let i = 0; i < 500; i++) sim.tick()
+
+  const pointPositions = new Float32Array(nodes.length * 2)
+  for (let i = 0; i < nodes.length; i++) {
+    pointPositions[i * 2]     = simNodes[i].x ?? 0
+    pointPositions[i * 2 + 1] = simNodes[i].y ?? 0
   }
 
   const linkIndexes = new Float32Array(edges.length * 2)
