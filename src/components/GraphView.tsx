@@ -9,13 +9,15 @@ export function GraphView() {
   const nodesRef = useRef<string[]>([])
   const graphData = useStore(s => s.graphData)
   const selectNode = useStore(s => s.selectNode)
+  const exitPathView = useStore(s => s.exitPathView)
+  const viewMode = useStore(s => s.viewMode)
   const setHoveredNode = useStore(s => s.setHoveredNode)
 
   useEffect(() => {
     nodesRef.current = graphData?.nodes ?? []
   }, [graphData])
 
-  // Init graph once — no render yet, wait for data
+  // Init graph once
   useEffect(() => {
     if (!containerRef.current) return
     const graph = new Graph(containerRef.current, {
@@ -38,7 +40,6 @@ export function GraphView() {
         if (index == null) return
         const title = nodesRef.current[index]
         if (!title) return
-        graph.selectPointByIndex(index, false)
         selectNode(title)
       },
       onPointMouseOver: (index) => {
@@ -47,15 +48,22 @@ export function GraphView() {
       },
       onPointMouseOut: () => setHoveredNode(null),
       onBackgroundClick: () => {
-        graph.unselectPoints()
-        selectNode(null)
-        graph.fitView(300)
+        graphRef.current?.unselectPoints()
       },
       attribution: '',
     })
     graphRef.current = graph
     return () => { graph.destroy() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Escape key exits path view
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') exitPathView()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [exitPathView])
 
   // Right-click → open Wikipedia
   useEffect(() => {
@@ -74,17 +82,22 @@ export function GraphView() {
     return () => el.removeEventListener('contextmenu', onContextMenu)
   }, [])
 
-  // Render once when data arrives
+  // Render when graphData changes (full graph or path subgraph)
   useEffect(() => {
     const graph = graphRef.current
     if (!graph || !graphData) return
-    graph.setPointPositions(graphData.pointPositions)
-    graph.setPointColors(graphData.pointColors)
-    graph.setPointSizes(graphData.pointSizes)
-    graph.setLinks(graphData.linkIndexes)
-    graph.setLinkColors(graphData.linkColors)
+    graph.setPointPositions(new Float32Array(0))
+    graph.setLinks(new Float32Array(0))
     graph.render(0)
-    setTimeout(() => graph.fitView(0), 100)
+    requestAnimationFrame(() => {
+      graph.setPointPositions(graphData.pointPositions)
+      graph.setPointColors(graphData.pointColors)
+      graph.setPointSizes(graphData.pointSizes)
+      graph.setLinks(graphData.linkIndexes)
+      graph.setLinkColors(graphData.linkColors)
+      graph.render(0)
+      setTimeout(() => graph.fitView(300), 50)
+    })
   }, [graphData])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100vh' }} />

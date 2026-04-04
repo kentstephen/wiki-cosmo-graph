@@ -6,8 +6,6 @@ import { NodePanel } from './components/NodePanel'
 export function App() {
   const loadData = useStore(s => s.loadData)
   const fetchStatus = useStore(s => s.fetchStatus)
-  const showExpanded = useStore(s => s.showExpanded)
-  const toggleExpanded = useStore(s => s.toggleExpanded)
   const graphData = useStore(s => s.graphData)
 
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -20,7 +18,7 @@ export function App() {
       <GraphView />
       <NodePanel />
 
-      <div style={{ position: 'absolute', top: 10, left: 10, color: '#ccc', fontSize: 10, userSelect: 'none', zIndex: 10 }}>
+      <div style={{ position: 'absolute', top: 10, left: 10, color: '#ccc', fontSize: 13, userSelect: 'none', zIndex: 10 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>{SEED_ARTICLES.join(' · ')}</div>
 
         {fetchStatus === 'loading' && (
@@ -29,11 +27,8 @@ export function App() {
 
         {fetchStatus === 'done' && (
           <>
-            <div style={{ color: '#888', marginBottom: 4 }}>
+            <div style={{ color: '#888' }}>
               {nodeCount.toLocaleString()} nodes · {edgeCount.toLocaleString()} edges
-            </div>
-            <div style={{ textDecoration: 'underline', cursor: 'pointer' }} onClick={toggleExpanded}>
-              {showExpanded ? 'hide expanded nodes' : 'show expanded nodes'}
             </div>
           </>
         )}
@@ -44,7 +39,7 @@ export function App() {
       </div>
 
       {fetchStatus === 'done' && (
-        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#334155', fontSize: 9, userSelect: 'none' }}>
+        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#334155', fontSize: 11, userSelect: 'none' }}>
           click to select · right-click to open wikipedia · drag to explore
         </div>
       )}
