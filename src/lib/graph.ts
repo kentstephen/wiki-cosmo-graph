@@ -217,7 +217,7 @@ export function buildNeighborhoodSubgraph(
   for (let i = 0; i < nodes.length; i++) {
     if (nodes[i] === selected) {
       pointSizes[i] = selectedSize
-      pointColors.set(SELECTED_COLOR, i * 4)
+      pointColors.set(seedSet.has(nodes[i]) ? SEED_COLOR : SELECTED_COLOR, i * 4)
     } else if (seedSet.has(nodes[i])) {
       pointSizes[i] = selectedSize
       pointColors.set(SEED_COLOR, i * 4)

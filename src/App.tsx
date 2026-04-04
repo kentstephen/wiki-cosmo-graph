@@ -17,7 +17,7 @@ export function App() {
       <GraphView />
 
       <div style={{ position: 'absolute', top: 10, left: 10, color: '#ccc', fontSize: 13, userSelect: 'none', zIndex: 10 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>{SEED_ARTICLES.join(' · ')}</div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>Wikipedia Knowledge Graph: {SEED_ARTICLES.join(' · ')}</div>
 
         {fetchStatus === 'loading' && (
           <div style={{ color: '#888' }}>loading…</div>
@@ -37,7 +37,7 @@ export function App() {
       </div>
 
       {fetchStatus === 'done' && (
-        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#334155', fontSize: 11, userSelect: 'none' }}>
+        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#555', fontSize: 11, userSelect: 'none' }}>
           hover to highlight · click to drill down · right-click to open wikipedia · esc to go back
         </div>
       )}
