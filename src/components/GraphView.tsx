@@ -22,7 +22,6 @@ export function GraphView() {
   const navStack = useStore(s => s.navStack)
   const setHoveredNode = useStore(s => s.setHoveredNode)
   const hoveredNode = useStore(s => s.hoveredNode)
-  const showingPath = useStore(s => s.showingPath)
   const seedArticles = useStore(s => s.seedArticles)
 
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
@@ -31,7 +30,6 @@ export function GraphView() {
 
   const navStackRef = useRef<string[]>([])
   const savedTransformRef = useRef<any>(null)
-  const showingPathRef = useRef(false)
   const keyNodeIndicesRef = useRef<Set<number>>(new Set())
   const seedIndicesRef = useRef<Set<number>>(new Set())
   const showKeyNodesRef = useRef(false)
@@ -44,11 +42,7 @@ export function GraphView() {
     navStackRef.current = navStack
   }, [navStack])
 
-  useEffect(() => {
-    showingPathRef.current = showingPath
-  }, [showingPath])
-
-  useEffect(() => {
+useEffect(() => {
     showKeyNodesRef.current = showKeyNodes
   }, [showKeyNodes])
 
@@ -68,25 +62,6 @@ export function GraphView() {
     const graph = graphRef.current
     if (!graph || !nodesRef.current.length) {
       setLabels([])
-      return
-    }
-
-    // In path view, always show all labels
-    if (showingPathRef.current) {
-      const result: NodeLabel[] = []
-      for (let i = 0; i < nodesRef.current.length; i++) {
-        const pos = graph.spaceToScreenPosition(
-          [graph.getPointPositions()[i * 2], graph.getPointPositions()[i * 2 + 1]]
-        )
-        result.push({
-          name: nodesRef.current[i],
-          x: pos[0],
-          y: pos[1],
-          isSeed: seedIndicesRef.current.has(i),
-          isKey: false,
-        })
-      }
-      setLabels(result)
       return
     }
 
@@ -170,13 +145,13 @@ export function GraphView() {
       onPointMouseOver: (index) => {
         if (index == null) return
         setHoveredNode(nodesRef.current[index] ?? null)
-        if (navStackRef.current.length === 0 && !showingPathRef.current) {
+        if (navStackRef.current.length === 0) {
           graph.selectPointByIndex(index, true)
         }
       },
       onPointMouseOut: () => {
         setHoveredNode(null)
-        if (navStackRef.current.length === 0 && !showingPathRef.current) {
+        if (navStackRef.current.length === 0) {
           graph.unselectPoints()
         }
       },
@@ -185,7 +160,7 @@ export function GraphView() {
         const title = nodesRef.current[index]
         if (!title) return
         // In subgraph or path view — open Wikipedia
-        if (navStackRef.current.length > 0 || showingPathRef.current) {
+        if (navStackRef.current.length > 0) {
           window.open(wikiUrl(title), '_blank')
           return
         }
@@ -236,7 +211,7 @@ export function GraphView() {
     const isDrilled = navStackRef.current.length > 0
     const savedCameraTransform = !isDrilled ? savedTransformRef.current : null
     if (savedCameraTransform) savedTransformRef.current = null
-    const isSubView = isDrilled || showingPathRef.current
+    const isSubView = isDrilled
     graph.setConfig({
       pointGreyoutOpacity: isSubView ? 1.0 : 0.08,
       linkGreyoutOpacity: isSubView ? 1.0 : 0.03,
@@ -322,7 +297,7 @@ export function GraphView() {
       )}
 
       {/* Controls when drilled down */}
-      {(isDrilledDown || showingPath) && (
+      {isDrilledDown && (
         <div style={{
           position: 'absolute',
           top: 10,
@@ -363,7 +338,7 @@ export function GraphView() {
       )}
 
       {/* Key nodes toggle — bottom right */}
-      {!isDrilledDown && !showingPath && (
+      {!isDrilledDown && (
         <div
           onClick={() => setShowKeyNodes(v => !v)}
           style={{

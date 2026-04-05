@@ -9,8 +9,6 @@ export function App() {
   const seedArticles = useStore(s => s.seedArticles)
   const currentGraphIndex = useStore(s => s.currentGraphIndex)
   const graphs = useStore(s => s.graphs)
-  const togglePath = useStore(s => s.togglePath)
-  const showingPath = useStore(s => s.showingPath)
 
   useEffect(() => { loadGraph(0) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -56,22 +54,6 @@ export function App() {
                 {g.label}
               </div>
             ))}
-            <div
-              onClick={togglePath}
-              style={{
-                padding: '4px 10px',
-                fontSize: 11,
-                cursor: 'pointer',
-                color: showingPath ? '#8bb8d8' : '#888',
-                background: showingPath ? 'rgba(85,130,160,0.12)' : 'transparent',
-                borderBottom: showingPath ? '1px solid #8bb8d8' : '1px solid transparent',
-                marginLeft: 8,
-              }}
-            >
-              {showingPath
-                ? `${graphData?.nodes.length ?? 0} steps between seeds`
-                : 'show path'}
-            </div>
           </div>
         )}
       </div>
