@@ -152,54 +152,27 @@ export function buildNeighborhoodSubgraph(
     adjacency.get(t)!.push(s)
   }
 
-  // Scale node sizes down for large neighborhoods
-  const n = nodes.length
-  const baseSize = n > 200 ? 3 : n > 50 ? 4 : 6
-  const selectedSize = n > 200 ? 6 : n > 50 ? 8 : 12
-
+  // Copy positions, sizes, and colors directly from the full graph — same look as the main view
+  const pointPositions = new Float32Array(nodes.length * 2)
   const pointSizes = new Float32Array(nodes.length)
   const pointColors = new Float32Array(nodes.length * 4)
-  for (let i = 0; i < nodes.length; i++) {
-    if (nodes[i] === selected) {
-      pointSizes[i] = selectedSize
-      pointColors.set(seedSet.has(nodes[i]) ? SEED_COLOR : SELECTED_COLOR, i * 4)
-    } else if (seedSet.has(nodes[i])) {
-      pointSizes[i] = selectedSize
-      pointColors.set(SEED_COLOR, i * 4)
-    } else {
-      pointSizes[i] = baseSize
-      pointColors.set(NEIGHBOR_COLOR, i * 4)
-    }
-  }
-
-  // Pre-compute layout with d3-force (static — no live simulation)
-  const simNodes = nodes.map((_, i) => ({ radius: pointSizes[i] } as { x?: number; y?: number; radius: number }))
-  const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
-
-  const repulsion = n > 200 ? -800 : n > 50 ? -500 : -400
-  const linkDist = n > 200 ? 200 : n > 50 ? 150 : 120
-
-  const sim = forceSimulation(simNodes as any)
-    .force('link', forceLink(simLinks).strength(0.1).distance(linkDist))
-    .force('charge', forceManyBody().strength(repulsion))
-    .force('center', forceCenter(0, 0))
-    .force('collide', forceCollide<any>().radius((d: any) => (d.radius ?? 6) + 4).strength(0.8))
-    .stop()
-
-  const ticks = n > 200 ? 600 : 400
-  for (let i = 0; i < ticks; i++) sim.tick()
-
-  const pointPositions = new Float32Array(nodes.length * 2)
-  for (let i = 0; i < nodes.length; i++) {
-    pointPositions[i * 2]     = simNodes[i].x ?? 0
-    pointPositions[i * 2 + 1] = simNodes[i].y ?? 0
+  for (let newIdx = 0; newIdx < sortedOld.length; newIdx++) {
+    const oldIdx = sortedOld[newIdx]
+    pointPositions[newIdx * 2] = fullGraph.pointPositions[oldIdx * 2]
+    pointPositions[newIdx * 2 + 1] = fullGraph.pointPositions[oldIdx * 2 + 1]
+    pointSizes[newIdx] = fullGraph.pointSizes[oldIdx]
+    pointColors[newIdx * 4] = fullGraph.pointColors[oldIdx * 4]
+    pointColors[newIdx * 4 + 1] = fullGraph.pointColors[oldIdx * 4 + 1]
+    pointColors[newIdx * 4 + 2] = fullGraph.pointColors[oldIdx * 4 + 2]
+    pointColors[newIdx * 4 + 3] = fullGraph.pointColors[oldIdx * 4 + 3]
   }
 
   const linkIndexes = new Float32Array(edges.length * 2)
   edges.forEach(([s, t], i) => { linkIndexes[i * 2] = s; linkIndexes[i * 2 + 1] = t })
 
   const linkColors = new Float32Array(edges.length * 4)
-  for (let i = 0; i < edges.length; i++) linkColors.set(NEIGHBOR_LINK_COLOR, i * 4)
+  const LINK_COLOR: [number, number, number, number] = [0.78, 0.78, 0.82, 0.35]
+  for (let i = 0; i < edges.length; i++) linkColors.set(LINK_COLOR, i * 4)
 
   return { nodes, nodeUrls, nodeTypes, edges, pointPositions, pointSizes, pointColors, linkIndexes, linkColors, adjacency }
 }
