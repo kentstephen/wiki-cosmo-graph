@@ -14,7 +14,8 @@ export interface GraphData {
   adjacency: Map<number, number[]>
 }
 
-/** Load a pre-baked graph from the Go CLI — just convert number[] → Float32Array. */
+/** Load a pre-baked graph from the Go CLI — convert number[] → Float32Array.
+ *  If pointPositions are missing, compute them with d3-force + collision avoidance. */
 export function graphDataFromPreBaked(pb: PreBakedGraph): GraphData {
   const edges = pb.edges as [number, number][]
 
@@ -27,13 +28,24 @@ export function graphDataFromPreBaked(pb: PreBakedGraph): GraphData {
     adjacency.get(t)!.push(s)
   }
 
+  const pointSizes = new Float32Array(pb.pointSizes)
+
+  // Use pre-baked positions if available, otherwise compute with d3-force
+  let pointPositions: Float32Array
+  if (pb.pointPositions && pb.pointPositions.length === pb.nodes.length * 2) {
+    pointPositions = new Float32Array(pb.pointPositions)
+  } else {
+    console.log(`Computing d3-force layout for ${pb.nodes.length} nodes...`)
+    pointPositions = computeLayoutWithCollision(pb.nodes.length, edges, pointSizes)
+  }
+
   return {
     nodes: pb.nodes,
     nodeUrls: pb.nodeUrls,
     nodeTypes: pb.nodeTypes as ('seed' | 'expanded')[],
     edges,
-    pointPositions: new Float32Array(pb.pointPositions),
-    pointSizes: new Float32Array(pb.pointSizes),
+    pointPositions,
+    pointSizes,
     pointColors: new Float32Array(pb.pointColors),
     linkIndexes: new Float32Array(pb.linkIndexes),
     linkColors: new Float32Array(pb.linkColors),
@@ -41,171 +53,39 @@ export function graphDataFromPreBaked(pb: PreBakedGraph): GraphData {
   }
 }
 
+/** Pre-compute static positions using d3-force with collision avoidance. */
+function computeLayoutWithCollision(
+  nodeCount: number,
+  edges: [number, number][],
+  sizes: Float32Array,
+): Float32Array {
+  const simNodes = Array.from({ length: nodeCount }, (_, i) => ({
+    radius: sizes[i] ?? 4,
+  } as { x?: number; y?: number; radius: number }))
+  const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
+
+  const sim = forceSimulation(simNodes as any)
+    .force('link', forceLink(simLinks).strength(0.05).distance(50))
+    .force('charge', forceManyBody().strength(-200))
+    .force('center', forceCenter(0, 0))
+    .force('collide', forceCollide<any>().radius((d: any) => (d.radius ?? 4) + 6).strength(0.8))
+    .stop()
+
+  for (let i = 0; i < 500; i++) sim.tick()
+
+  const positions = new Float32Array(nodeCount * 2)
+  for (let i = 0; i < nodeCount; i++) {
+    positions[i * 2] = simNodes[i].x ?? 0
+    positions[i * 2 + 1] = simNodes[i].y ?? 0
+  }
+  return positions
+}
+
 // Palette
-const LINK_COLOR:  [number, number, number, number] = [0.78, 0.78, 0.82, 0.35] // white silver
-const MIN_SIZE = 1
-const MAX_SIZE = 8
-const SEED_SIZE = 14
-const SEED_COLOR: [number, number, number, number] = [0.8, 0.2, 0.4, 1.0] // ruby/crimson for seeds
-
-// Utility/infrastructure Wikipedia pages to filter out
-const FILTERED_EXACT = new Set([
-  'Wayback Machine',
-  'Wikisource', 'Wikiquote', 'Wikibooks', 'Wikiversity',
-  'Wikinews', 'Wiktionary', 'Wikimedia Commons', 'Wikidata',
-])
-
-function isFilteredNode(title: string): boolean {
-  if (FILTERED_EXACT.has(title)) return true
-  if (title.endsWith('(identifier)')) return true
-  if (title.endsWith('(disambiguation)')) return true
-  return false
-}
-
-// Shades of gold: dark gold (low degree) → bright gold (high degree)
-const COLORMAP = buildColormap(50, [
-  [0.45, 0.38, 0.15],  // dark bronze-gold — low degree
-  [0.65, 0.55, 0.20],  // warm gold
-  [0.80, 0.68, 0.28],  // mid gold
-  [0.92, 0.80, 0.35],  // bright gold
-  [1.00, 0.90, 0.50],  // light gold — high degree
-])
-
-function buildColormap(steps: number, stops: [number, number, number][]): [number, number, number, number][] {
-  const map: [number, number, number, number][] = []
-  for (let s = 0; s < steps; s++) {
-    const t = s / (steps - 1)
-    const seg = t * (stops.length - 1)
-    const i = Math.min(Math.floor(seg), stops.length - 2)
-    const f = seg - i
-    const a = stops[i]
-    const b = stops[i + 1]
-    map.push([
-      a[0] + (b[0] - a[0]) * f,
-      a[1] + (b[1] - a[1]) * f,
-      a[2] + (b[2] - a[2]) * f,
-      0.4 + 0.6 * t,
-    ])
-  }
-  return map
-}
-
-function lerpColor(t: number): [number, number, number, number] {
-  const idx = Math.round(Math.max(0, Math.min(1, t)) * (COLORMAP.length - 1))
-  return COLORMAP[idx]
-}
-
-export function buildGraphDataFromRows(
-  allNodes: { id: string; node_type: string; wiki_url: string }[],
-  allEdges: { source: string; target: string }[],
-  showExpanded: boolean,
-  seeds: string[],
-  precomputedPositions?: number[],
-): GraphData {
-  const seedSet = new Set(seeds)
-
-  // Filter out utility/infrastructure nodes
-  const filteredNodes = allNodes.filter(n => !isFilteredNode(n.id))
-
-  const visibleNodes = showExpanded
-    ? filteredNodes
-    : filteredNodes.filter(n => seedSet.has(n.id))
-
-  const nodes = visibleNodes.map(n => n.id)
-  const nodeUrls = visibleNodes.map(n => n.wiki_url)
-  const nodeTypes = visibleNodes.map(n => seedSet.has(n.id) ? 'seed' : 'expanded') as ('seed' | 'expanded')[]
-  const nodeIndex = new Map(nodes.map((n, i) => [n, i]))
-
-  const edgeSet = new Set<string>()
-  const edges: [number, number][] = []
-  for (const { source, target } of allEdges) {
-    if (isFilteredNode(source) || isFilteredNode(target)) continue
-    const si = nodeIndex.get(source)
-    const ti = nodeIndex.get(target)
-    if (si === undefined || ti === undefined) continue
-    const key = si < ti ? `${si}-${ti}` : `${ti}-${si}`
-    if (!edgeSet.has(key)) {
-      edgeSet.add(key)
-      edges.push([si, ti])
-    }
-  }
-
-  // Build adjacency list
-  const adjacency = new Map<number, number[]>()
-  for (const [s, t] of edges) {
-    if (!adjacency.has(s)) adjacency.set(s, [])
-    if (!adjacency.has(t)) adjacency.set(t, [])
-    adjacency.get(s)!.push(t)
-    adjacency.get(t)!.push(s)
-  }
-
-  // Compute degree (number of edges) per node
-  const degree = new Uint32Array(nodes.length)
-  for (const [s, t] of edges) {
-    degree[s]++
-    degree[t]++
-  }
-
-  // Rank-based sizing/coloring for even distribution across the full range
-  // Exclude seeds from ranking (they get special treatment)
-  const nonSeedIndices = nodes.map((n, i) => ({ i, d: degree[i] })).filter(x => !seedSet.has(nodes[x.i]))
-  nonSeedIndices.sort((a, b) => a.d - b.d)
-  const tByNode = new Float32Array(nodes.length)
-  for (let r = 0; r < nonSeedIndices.length; r++) {
-    tByNode[nonSeedIndices[r].i] = nonSeedIndices.length > 1 ? r / (nonSeedIndices.length - 1) : 0.5
-  }
-
-  const pointSizes = new Float32Array(nodes.length)
-  const pointColors = new Float32Array(nodes.length * 4)
-  for (let i = 0; i < nodes.length; i++) {
-    if (seedSet.has(nodes[i])) {
-      pointSizes[i] = SEED_SIZE
-      pointColors.set(SEED_COLOR, i * 4)
-    } else {
-      const t = tByNode[i]
-      pointSizes[i] = MIN_SIZE + (MAX_SIZE - MIN_SIZE) * t
-      pointColors.set(lerpColor(t), i * 4)
-    }
-  }
-
-  // Use pre-computed positions if available (from Go CLI), otherwise run d3-force
-  const pointPositions = new Float32Array(nodes.length * 2)
-  if (precomputedPositions && precomputedPositions.length === nodes.length * 2) {
-    console.log(`Using pre-computed positions for ${nodes.length} nodes`)
-    for (let i = 0; i < precomputedPositions.length; i++) {
-      pointPositions[i] = precomputedPositions[i]
-    }
-  } else {
-    console.log(`Computing d3-force layout for ${nodes.length} nodes...`)
-    const simNodes = nodes.map(() => ({} as { x?: number; y?: number }))
-    const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
-
-    const sim = forceSimulation(simNodes as any)
-      .force('link', forceLink(simLinks).strength(0.05).distance(50))
-      .force('charge', forceManyBody().strength(-200))
-      .force('center', forceCenter(0, 0))
-      .stop()
-
-    for (let i = 0; i < 500; i++) sim.tick()
-
-    for (let i = 0; i < nodes.length; i++) {
-      pointPositions[i * 2]     = simNodes[i].x ?? 0
-      pointPositions[i * 2 + 1] = simNodes[i].y ?? 0
-    }
-  }
-
-  const linkIndexes = new Float32Array(edges.length * 2)
-  edges.forEach(([s, t], i) => { linkIndexes[i * 2] = s; linkIndexes[i * 2 + 1] = t })
-
-  const linkColors = new Float32Array(edges.length * 4)
-  for (let i = 0; i < edges.length; i++) linkColors.set(LINK_COLOR, i * 4)
-
-  return { nodes, nodeUrls, nodeTypes, edges, pointPositions, pointSizes, pointColors, linkIndexes, linkColors, adjacency }
-}
-
 const NEIGHBOR_COLOR: [number, number, number, number] = [0.80, 0.68, 0.28, 0.9] // gold
 const NEIGHBOR_LINK_COLOR: [number, number, number, number] = [0.78, 0.78, 0.82, 0.4] // white silver
 const SELECTED_COLOR: [number, number, number, number] = [1.00, 0.90, 0.50, 1.0] // bright gold for selected
+const SEED_COLOR: [number, number, number, number] = [0.8, 0.2, 0.4, 1.0] // ruby/crimson for seeds
 
 /** Build a subgraph of the selected node + its direct neighbors. */
 export function buildNeighborhoodSubgraph(
@@ -271,6 +151,7 @@ export function buildNeighborhoodSubgraph(
     }
   }
 
+  // Pre-compute layout with d3-force (static — no live simulation)
   const simNodes = nodes.map((_, i) => ({ radius: pointSizes[i] } as { x?: number; y?: number; radius: number }))
   const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
 

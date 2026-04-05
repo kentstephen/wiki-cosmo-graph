@@ -57,6 +57,7 @@ pointDefaultSize: 3, linkDefaultWidth: 0.8
 - **Tooltip fix**: clears properly on mouse move by checking cosmos `store.hoveredPoint` directly
 
 ### Key design decisions (IMPORTANT — do not re-propose)
+- **ABSOLUTELY NO LIVE SIMULATION** — Graph must NEVER move on its own. No simulation, no jitter, no floating, no shaking, no erratic movement. Stephen finds it anxiety-inducing and unusable. Pre-compute all positions BEFORE rendering. Use `graph.render(0)` with zero alpha ALWAYS. NEVER enable cosmos.gl simulation (`enableSimulation` must be false or render with 0 alpha). This has been said MANY times — do NOT propose live simulation again, ever.
 - **No side panel** — Stephen found it confusing and unhelpful. The graph IS the interface.
 - **Subgraph must be static** — no highlighting, no greyout, no visual changes on hover/click. Just nodes, edges, tooltip.
 - **Click in subgraph = open Wikipedia** — not drill deeper, not re-trigger subgraph. Static view, click opens article.
