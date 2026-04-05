@@ -29,6 +29,26 @@ export function graphDataFromPreBaked(pb: PreBakedGraph): GraphData {
   }
 
   const pointSizes = new Float32Array(pb.pointSizes)
+  const pointColors = new Float32Array(pb.pointColors)
+
+  // Color nodes connected to BOTH seeds differently
+  if (pb.seeds && pb.seeds.length >= 2) {
+    const seedIndices: number[] = []
+    for (let i = 0; i < pb.nodes.length; i++) {
+      if (pb.seeds.includes(pb.nodes[i])) seedIndices.push(i)
+    }
+    if (seedIndices.length >= 2) {
+      const neighborsA = new Set(adjacency.get(seedIndices[0]) ?? [])
+      const neighborsB = new Set(adjacency.get(seedIndices[1]) ?? [])
+      for (let i = 0; i < pb.nodes.length; i++) {
+        if (pb.seeds.includes(pb.nodes[i])) continue
+        if (neighborsA.has(i) && neighborsB.has(i)) {
+          pointColors.set(OVERLAP_COLOR, i * 4)
+          pointSizes[i] = Math.max(pointSizes[i], 6)
+        }
+      }
+    }
+  }
 
   // Use pre-baked positions if available, otherwise compute with d3-force
   let pointPositions: Float32Array
@@ -46,7 +66,7 @@ export function graphDataFromPreBaked(pb: PreBakedGraph): GraphData {
     edges,
     pointPositions,
     pointSizes,
-    pointColors: new Float32Array(pb.pointColors),
+    pointColors,
     linkIndexes: new Float32Array(pb.linkIndexes),
     linkColors: new Float32Array(pb.linkColors),
     adjacency,
@@ -82,6 +102,7 @@ function computeLayoutWithCollision(
 }
 
 // Palette
+const OVERLAP_COLOR: [number, number, number, number] = [0.30, 0.75, 0.70, 0.95] // teal — connected to both seeds
 const NEIGHBOR_COLOR: [number, number, number, number] = [0.80, 0.68, 0.28, 0.9] // gold
 const NEIGHBOR_LINK_COLOR: [number, number, number, number] = [0.78, 0.78, 0.82, 0.4] // white silver
 const SELECTED_COLOR: [number, number, number, number] = [1.00, 0.90, 0.50, 1.0] // bright gold for selected
