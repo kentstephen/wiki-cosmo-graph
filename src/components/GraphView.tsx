@@ -8,6 +8,7 @@ interface NodeLabel {
   name: string
   x: number
   y: number
+  screenRadius: number
   isSeed: boolean
   isKey: boolean
 }
@@ -71,6 +72,7 @@ useEffect(() => {
 
     const result: NodeLabel[] = []
     const positions = graph.getPointPositions()
+    const sizes = graph.getPointSizes()
 
     for (let i = 0; i < nodesRef.current.length; i++) {
       const isSeed = seedIndicesRef.current.has(i)
@@ -84,7 +86,8 @@ useEffect(() => {
       // Skip if off screen
       if (pos[0] < -50 || pos[0] > w + 50 || pos[1] < -50 || pos[1] > h + 50) continue
 
-      result.push({ name: nodesRef.current[i], x: pos[0], y: pos[1], isSeed, isKey })
+      const screenRadius = (sizes?.[i] ?? 4) * zoom * 0.5
+      result.push({ name: nodesRef.current[i], x: pos[0], y: pos[1], screenRadius, isSeed, isKey })
     }
 
     // Cap at 50 labels when zoomed in (seeds + key nodes are always included)
@@ -261,11 +264,11 @@ useEffect(() => {
           style={{
             position: 'absolute',
             left: label.x,
-            top: label.y - 16,
+            top: label.y - label.screenRadius - 18,
             transform: 'translateX(-50%)',
-            color: label.isSeed ? '#cc3366' : label.isKey ? '#e2d9c0' : '#aaa',
-            fontSize: label.isSeed ? 11 : 10,
-            fontFamily: '"Nunito Sans", -apple-system, sans-serif',
+            color: label.isSeed ? '#ff4488' : '#ccc',
+            fontSize: 14,
+            fontFamily: '"Linux Libertine", "Georgia", "Times", serif',
             fontWeight: label.isSeed ? 700 : 400,
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
