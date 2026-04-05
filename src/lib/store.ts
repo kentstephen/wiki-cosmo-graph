@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { loadGraphFromDb } from './db'
-import { graphDataFromPreBaked, buildNeighborhoodSubgraph, GraphData } from './graph'
+import { graphDataFromPreBaked, buildNeighborhoodSubgraph, buildPathBetweenSeeds, GraphData } from './graph'
 
 export type FetchStatus = 'idle' | 'loading' | 'done' | 'error'
 
@@ -19,10 +19,13 @@ interface State {
   currentGraphIndex: number
   graphs: typeof GRAPHS
 
+  showingPath: boolean
+
   loadGraph: (index: number) => Promise<void>
   drillDown: (title: string) => void
   goBack: () => void
   setHoveredNode: (title: string | null) => void
+  togglePath: () => void
 }
 
 export const useStore = create<State>((set, get) => ({
@@ -34,6 +37,7 @@ export const useStore = create<State>((set, get) => ({
   seedArticles: [],
   currentGraphIndex: 0,
   graphs: GRAPHS,
+  showingPath: false,
 
   loadGraph: async (index: number) => {
     set({ fetchStatus: 'loading', navStack: [], currentGraphIndex: index })
@@ -59,10 +63,29 @@ export const useStore = create<State>((set, get) => ({
   },
 
   goBack: () => {
-    const { fullGraphData, navStack } = get()
-    if (!fullGraphData || navStack.length === 0) return
+    const { fullGraphData, navStack, showingPath } = get()
+    if (!fullGraphData) return
+    if (showingPath) {
+      set({ graphData: fullGraphData, showingPath: false, navStack: [] })
+      return
+    }
+    if (navStack.length === 0) return
     set({ graphData: fullGraphData, navStack: [] })
   },
 
   setHoveredNode: (title) => set({ hoveredNode: title }),
+
+  togglePath: () => {
+    const { showingPath, fullGraphData, seedArticles } = get()
+    if (showingPath) {
+      // Go back to full graph
+      set({ graphData: fullGraphData, showingPath: false, navStack: [] })
+    } else {
+      if (!fullGraphData) return
+      const pathGraph = buildPathBetweenSeeds(fullGraphData, seedArticles)
+      if (pathGraph) {
+        set({ graphData: pathGraph, showingPath: true, navStack: [] })
+      }
+    }
+  },
 }))
