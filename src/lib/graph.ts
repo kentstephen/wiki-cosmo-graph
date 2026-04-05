@@ -1,4 +1,5 @@
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force'
+import type { PreBakedGraph } from './db'
 
 export interface GraphData {
   nodes: string[]
@@ -13,6 +14,33 @@ export interface GraphData {
   adjacency: Map<number, number[]>
 }
 
+/** Load a pre-baked graph from the Go CLI — just convert number[] → Float32Array. */
+export function graphDataFromPreBaked(pb: PreBakedGraph): GraphData {
+  const edges = pb.edges as [number, number][]
+
+  // Build adjacency
+  const adjacency = new Map<number, number[]>()
+  for (const [s, t] of edges) {
+    if (!adjacency.has(s)) adjacency.set(s, [])
+    if (!adjacency.has(t)) adjacency.set(t, [])
+    adjacency.get(s)!.push(t)
+    adjacency.get(t)!.push(s)
+  }
+
+  return {
+    nodes: pb.nodes,
+    nodeUrls: pb.nodeUrls,
+    nodeTypes: pb.nodeTypes as ('seed' | 'expanded')[],
+    edges,
+    pointPositions: new Float32Array(pb.pointPositions),
+    pointSizes: new Float32Array(pb.pointSizes),
+    pointColors: new Float32Array(pb.pointColors),
+    linkIndexes: new Float32Array(pb.linkIndexes),
+    linkColors: new Float32Array(pb.linkColors),
+    adjacency,
+  }
+}
+
 // Palette
 const LINK_COLOR:  [number, number, number, number] = [0.78, 0.78, 0.82, 0.35] // white silver
 const MIN_SIZE = 1
@@ -21,11 +49,18 @@ const SEED_SIZE = 14
 const SEED_COLOR: [number, number, number, number] = [0.8, 0.2, 0.4, 1.0] // ruby/crimson for seeds
 
 // Utility/infrastructure Wikipedia pages to filter out
-const FILTERED_NODES = new Set([
-  'Doi (identifier)', 'ISBN (identifier)', 'ISSN (identifier)',
-  'JSTOR (identifier)', 'OCLC (identifier)', 'PMID (identifier)',
-  'S2CID (identifier)', 'Wayback Machine',
+const FILTERED_EXACT = new Set([
+  'Wayback Machine',
+  'Wikisource', 'Wikiquote', 'Wikibooks', 'Wikiversity',
+  'Wikinews', 'Wiktionary', 'Wikimedia Commons', 'Wikidata',
 ])
+
+function isFilteredNode(title: string): boolean {
+  if (FILTERED_EXACT.has(title)) return true
+  if (title.endsWith('(identifier)')) return true
+  if (title.endsWith('(disambiguation)')) return true
+  return false
+}
 
 // Shades of gold: dark gold (low degree) → bright gold (high degree)
 const COLORMAP = buildColormap(50, [
@@ -65,11 +100,12 @@ export function buildGraphDataFromRows(
   allEdges: { source: string; target: string }[],
   showExpanded: boolean,
   seeds: string[],
+  precomputedPositions?: number[],
 ): GraphData {
   const seedSet = new Set(seeds)
 
   // Filter out utility/infrastructure nodes
-  const filteredNodes = allNodes.filter(n => !FILTERED_NODES.has(n.id))
+  const filteredNodes = allNodes.filter(n => !isFilteredNode(n.id))
 
   const visibleNodes = showExpanded
     ? filteredNodes
@@ -83,7 +119,7 @@ export function buildGraphDataFromRows(
   const edgeSet = new Set<string>()
   const edges: [number, number][] = []
   for (const { source, target } of allEdges) {
-    if (FILTERED_NODES.has(source) || FILTERED_NODES.has(target)) continue
+    if (isFilteredNode(source) || isFilteredNode(target)) continue
     const si = nodeIndex.get(source)
     const ti = nodeIndex.get(target)
     if (si === undefined || ti === undefined) continue
@@ -132,22 +168,30 @@ export function buildGraphDataFromRows(
     }
   }
 
-  // Pre-compute positions with d3-force (static — no live simulation)
-  const simNodes = nodes.map(() => ({} as { x?: number; y?: number }))
-  const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
-
-  const sim = forceSimulation(simNodes as any)
-    .force('link', forceLink(simLinks).strength(0.05).distance(50))
-    .force('charge', forceManyBody().strength(-200))
-    .force('center', forceCenter(0, 0))
-    .stop()
-
-  for (let i = 0; i < 500; i++) sim.tick()
-
+  // Use pre-computed positions if available (from Go CLI), otherwise run d3-force
   const pointPositions = new Float32Array(nodes.length * 2)
-  for (let i = 0; i < nodes.length; i++) {
-    pointPositions[i * 2]     = simNodes[i].x ?? 0
-    pointPositions[i * 2 + 1] = simNodes[i].y ?? 0
+  if (precomputedPositions && precomputedPositions.length === nodes.length * 2) {
+    console.log(`Using pre-computed positions for ${nodes.length} nodes`)
+    for (let i = 0; i < precomputedPositions.length; i++) {
+      pointPositions[i] = precomputedPositions[i]
+    }
+  } else {
+    console.log(`Computing d3-force layout for ${nodes.length} nodes...`)
+    const simNodes = nodes.map(() => ({} as { x?: number; y?: number }))
+    const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
+
+    const sim = forceSimulation(simNodes as any)
+      .force('link', forceLink(simLinks).strength(0.05).distance(50))
+      .force('charge', forceManyBody().strength(-200))
+      .force('center', forceCenter(0, 0))
+      .stop()
+
+    for (let i = 0; i < 500; i++) sim.tick()
+
+    for (let i = 0; i < nodes.length; i++) {
+      pointPositions[i * 2]     = simNodes[i].x ?? 0
+      pointPositions[i * 2 + 1] = simNodes[i].y ?? 0
+    }
   }
 
   const linkIndexes = new Float32Array(edges.length * 2)

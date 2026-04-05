@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
-import { useStore, SEED_ARTICLES } from './lib/store'
+import { useStore } from './lib/store'
 import { GraphView } from './components/GraphView'
 
 export function App() {
   const loadData = useStore(s => s.loadData)
   const fetchStatus = useStore(s => s.fetchStatus)
   const graphData = useStore(s => s.graphData)
+  const seedArticles = useStore(s => s.seedArticles)
 
   useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -17,7 +18,7 @@ export function App() {
       <GraphView />
 
       <div style={{ position: 'absolute', top: 10, left: 10, color: '#ccc', fontSize: 13, userSelect: 'none', zIndex: 10 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>Wikipedia Knowledge Graph: {SEED_ARTICLES.join(' · ')}</div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>Wikipedia Knowledge Graph: {seedArticles.join(' · ')}</div>
 
         {fetchStatus === 'loading' && (
           <div style={{ color: '#888' }}>loading…</div>

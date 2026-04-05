@@ -1,4 +1,4 @@
-# Python-generated files
+/# Python-generated files
 __pycache__/
 *.py[oc]
 build/
@@ -32,3 +32,6 @@ cosmogl-graph/
 wiki-graph-clone/
 
 flowmap-blue-clone/
+
+# Go binary
+cmd/wikigraph/wikigraph

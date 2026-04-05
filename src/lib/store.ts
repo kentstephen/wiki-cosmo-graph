@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 import { loadGraphFromDb } from './db'
-import { buildGraphDataFromRows, buildNeighborhoodSubgraph, GraphData } from './graph'
+import { graphDataFromPreBaked, buildNeighborhoodSubgraph, GraphData } from './graph'
 
 export type FetchStatus = 'idle' | 'loading' | 'done' | 'error'
 
-export const SEED_ARTICLES = ['William James', 'William Blake']
+const DEFAULT_SEEDS = ['William James', 'William Blake']
 
 interface State {
   fetchStatus: FetchStatus
@@ -12,6 +12,7 @@ interface State {
   graphData: GraphData | null
   fullGraphData: GraphData | null
   navStack: string[]
+  seedArticles: string[]
 
   loadData: () => Promise<void>
   drillDown: (title: string) => void
@@ -25,13 +26,15 @@ export const useStore = create<State>((set, get) => ({
   graphData: null,
   fullGraphData: null,
   navStack: [],
+  seedArticles: DEFAULT_SEEDS,
 
   loadData: async () => {
     set({ fetchStatus: 'loading' })
     try {
-      const { nodes, edges } = await loadGraphFromDb()
-      const graphData = buildGraphDataFromRows(nodes, edges, true, SEED_ARTICLES)
-      set({ graphData, fullGraphData: graphData, fetchStatus: 'done' })
+      const preBaked = await loadGraphFromDb()
+      const seedArticles = preBaked.seeds && preBaked.seeds.length > 0 ? preBaked.seeds : DEFAULT_SEEDS
+      const graphData = graphDataFromPreBaked(preBaked)
+      set({ graphData, fullGraphData: graphData, seedArticles, fetchStatus: 'done' })
     } catch (e) {
       console.error(e)
       set({ fetchStatus: 'error' })
@@ -39,10 +42,10 @@ export const useStore = create<State>((set, get) => ({
   },
 
   drillDown: (title) => {
-    const { fullGraphData } = get()
+    const { fullGraphData, seedArticles } = get()
     if (!fullGraphData) return
 
-    const neighborhood = buildNeighborhoodSubgraph(fullGraphData, title, SEED_ARTICLES)
+    const neighborhood = buildNeighborhoodSubgraph(fullGraphData, title, seedArticles)
     if (neighborhood) {
       set({ graphData: neighborhood, navStack: [title] })
     }

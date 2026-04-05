@@ -40,6 +40,11 @@ pointDefaultSize: 3, linkDefaultWidth: 0.8
 - Filtered out 8 Wikipedia utility nodes (ISBN, JSTOR, Wayback, OCLC, DOI, PMID, S2CID, ISSN) and ~5,700 noisy edges
 - Escape key exits drill-down view
 
+### What was done (04-04, session 2) — camera restore + type coloring plan
+- **Camera restore on goBack**: saves d3-zoom transform (`k`, `x`, `y`) from `graph.zoomInstance.eventTransform` before drill-down, restores it via `canvasD3Selection.call(behavior.transform, t)` on Escape/back instead of `fitView(300)`. Root graph returns to exact same pan/zoom position.
+- **cosmos.gl internals used**: `zoomInstance` (private, accessed via `as any`) wraps d3-zoom. `eventTransform` is a d3 `ZoomTransform`. `canvasD3Selection` is d3-selected canvas. No public camera save/restore API exists.
+- **Wikidata P31 plan written** (not yet implemented): fetch "instance of" for all 1782 nodes via `wbgetentities` API, classify as person/book/university/movement/etc., color nodes by type. Plan at `.claude/plans/encapsulated-forging-pudding.md`.
+
 ### What was done (04-04) — simplified subgraph drill-down
 - **Removed** BFS path subgraph (`buildPathSubgraph`, `findPath`) — was too complex and confusing
 - **Removed** NodePanel entirely — side panel with neighbor lists was unhelpful noise
@@ -62,8 +67,50 @@ pointDefaultSize: 3, linkDefaultWidth: 0.8
 - The full browser app vision (file drop → Wikipedia API → graph construction) from STEPHENS-TODO.md
 - SQLRooms / cosmos.gl / DuckDB-WASM stack
 - Stephen wants to build a tool he can use himself to create connections and explore data
+- **Node type coloring**: Use Wikidata `P31` ("instance of") to classify nodes (person=Q5, university=Q3918, book=Q7725, philosophical school=Q7257, etc.) and color by type instead of just degree. Would require fetching Wikidata for all nodes (batch challenge).
 
-## Current Direction (updated 2026-04-03)
+## Session Notes (2026-04-05) — Go CLI + 236K node graph
+
+### What was done
+- **Go CLI** (`cmd/wikigraph/main.go`): interactive CLI prompts for 2 Wikipedia URLs, fetches links via Wikipedia API (polite single-threaded, 200ms gap, retry+backoff on 429), builds graph, computes layout, writes `public/graph.json`, launches Vite dev server + opens browser
+- **Go force layout** (`cmd/wikigraph/layout.go`): Barnes-Hut quadtree force simulation in Go — iterative (no recursion), array-based quadtree to avoid stack overflow on 236K nodes. Scaled params for large graphs (weaker repulsion, velocity clamping)
+- **Pre-baked graph.json**: Go CLI now computes ALL rendering data server-side (positions, colors, sizes, link indexes, link colors) so the browser does zero processing — just Float32Array conversion and hand off to cosmos.gl
+- **`--layout-only` flag**: re-bakes existing graph.json without re-fetching from Wikipedia API
+- **Dynamic seeds**: React app reads seed names from graph.json `seeds` field, displays in title bar. Falls back to William James/Blake defaults for old data.
+- **Removed dead NodePanel.tsx**
+
+### First test: Nikolai Fyodorov (philosopher) + Elon Musk
+- Phase 1: 2 seeds → 1,219 unique linked articles
+- Phase 2: fetched links for all 1,219 neighbors (9m35s, 2.1/sec, zero 429 errors)
+- Result: 236,128 nodes, 567,847 edges after filtering
+- cosmos.gl renders 236K nodes smoothly (GPU-accelerated)
+- Layout looks like a radiant golden nebula — dense core, sparser periphery
+
+### Architecture: pre-baked vs browser-computed
+- Original: browser fetches graph.json (nodes + edges as strings), runs d3-force layout, computes colors/sizes → all on main thread
+- Problem: 236K nodes crashed d3-force in browser (500 ticks × O(n log n) Barnes-Hut on main thread)
+- Solution: Go CLI does ALL computation (layout, coloring, edge indexing), writes ready-to-render arrays. Browser just converts number[] → Float32Array
+- graph.json format changed: flat arrays (`pointPositions`, `pointSizes`, `pointColors`, `linkIndexes`, `linkColors`) instead of node/edge objects
+
+### Key learnings
+- Wikipedia API rate limit: 6 concurrent workers at 50ms = instant 429s. Single-threaded at 200ms gap = clean run
+- d3-force with `-200` charge strength on 236K nodes → positions explode to 10^108. Need `-30` strength + velocity clamping for large graphs
+- Recursive quadtree on 236K points with coincident positions → stack overflow (1GB goroutine limit). Array-based iterative tree with max depth cap fixes it
+- 78MB JSON is fine to serve and parse — cosmos.gl handles 236K nodes, the bottleneck was CPU layout not GPU rendering
+- **Backup data before re-baking** — always `cp graph.json graph.json.backup` first
+
+### Known issues (WIP)
+- **Nodes are too overlapped** — the 236K node layout is a dense blob. Need better spread/cluster separation. ForceAtlas2 or stronger repulsion with more ticks could help.
+
+### TODO from this session
+- Fix node overlap / layout density (priority)
+- Better force layout algorithm (ForceAtlas2 for cluster structure)
+- Arrow/Parquet binary format instead of 78MB JSON (when DuckDB-WASM comes in)
+- Wikipedia autocomplete API for URL input
+- Support 3+ seed articles
+- Mosaic (uwdata) architecture for DuckDB→visualization data flow
+
+## Current Direction (updated 2026-04-05)
 
 **All Python notebooks are deprecated.** Building a browser-side visualization of a Wikipedia entity network.
 
