@@ -12,7 +12,7 @@ export interface PreBakedGraph {
 }
 
 export async function loadGraphFromDb(): Promise<PreBakedGraph> {
-  const res = await fetch('/graph.json')
+  const res = await fetch(import.meta.env.BASE_URL + 'graph.json')
   if (!res.ok) throw new Error(`Failed to load graph data: ${res.status}`)
   return res.json()
 }
