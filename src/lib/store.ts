@@ -5,7 +5,7 @@ import { graphDataFromPreBaked, buildNeighborhoodSubgraph, GraphData } from './g
 export type FetchStatus = 'idle' | 'loading' | 'done' | 'error'
 
 const GRAPHS = [
-  { file: 'graph.json', label: 'Fyodorov · Musk' },
+  { file: 'graph.json', label: 'Nikolai Fyodorov · Elon Musk' },
   { file: 'graph-williams.json', label: 'William James · William Blake' },
 ]
 
