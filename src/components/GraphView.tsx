@@ -76,8 +76,8 @@ useEffect(() => {
       const isSeed = seedIndicesRef.current.has(i)
       const isKey = keyNodeIndicesRef.current.has(i)
 
-      // Key nodes: show if toggled on. Everything else (including seeds): only when zoomed in.
-      if (!(isKey && showKeyNodesRef.current) && zoom < 3) continue
+      // Seeds + key nodes: show if landmarks toggled on. Everything else: only when zoomed in.
+      if (!((isKey || isSeed) && showKeyNodesRef.current) && zoom < 10) continue
 
       const pos = graph.spaceToScreenPosition([positions[i * 2], positions[i * 2 + 1]])
 
