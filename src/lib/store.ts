@@ -4,7 +4,10 @@ import { graphDataFromPreBaked, buildNeighborhoodSubgraph, GraphData } from './g
 
 export type FetchStatus = 'idle' | 'loading' | 'done' | 'error'
 
-const DEFAULT_SEEDS = ['William James', 'William Blake']
+const GRAPHS = [
+  { file: 'graph.json', label: 'Fyodorov · Musk' },
+  { file: 'graph-williams.json', label: 'William James · William Blake' },
+]
 
 interface State {
   fetchStatus: FetchStatus
@@ -13,8 +16,10 @@ interface State {
   fullGraphData: GraphData | null
   navStack: string[]
   seedArticles: string[]
+  currentGraphIndex: number
+  graphs: typeof GRAPHS
 
-  loadData: () => Promise<void>
+  loadGraph: (index: number) => Promise<void>
   drillDown: (title: string) => void
   goBack: () => void
   setHoveredNode: (title: string | null) => void
@@ -26,13 +31,15 @@ export const useStore = create<State>((set, get) => ({
   graphData: null,
   fullGraphData: null,
   navStack: [],
-  seedArticles: DEFAULT_SEEDS,
+  seedArticles: [],
+  currentGraphIndex: 0,
+  graphs: GRAPHS,
 
-  loadData: async () => {
-    set({ fetchStatus: 'loading' })
+  loadGraph: async (index: number) => {
+    set({ fetchStatus: 'loading', navStack: [], currentGraphIndex: index })
     try {
-      const preBaked = await loadGraphFromDb()
-      const seedArticles = preBaked.seeds && preBaked.seeds.length > 0 ? preBaked.seeds : DEFAULT_SEEDS
+      const preBaked = await loadGraphFromDb(GRAPHS[index].file)
+      const seedArticles = preBaked.seeds && preBaked.seeds.length > 0 ? preBaked.seeds : []
       const graphData = graphDataFromPreBaked(preBaked)
       set({ graphData, fullGraphData: graphData, seedArticles, fetchStatus: 'done' })
     } catch (e) {

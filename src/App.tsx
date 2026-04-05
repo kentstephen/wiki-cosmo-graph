@@ -3,12 +3,14 @@ import { useStore } from './lib/store'
 import { GraphView } from './components/GraphView'
 
 export function App() {
-  const loadData = useStore(s => s.loadData)
+  const loadGraph = useStore(s => s.loadGraph)
   const fetchStatus = useStore(s => s.fetchStatus)
   const graphData = useStore(s => s.graphData)
   const seedArticles = useStore(s => s.seedArticles)
+  const currentGraphIndex = useStore(s => s.currentGraphIndex)
+  const graphs = useStore(s => s.graphs)
 
-  useEffect(() => { loadData() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadGraph(0) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const nodeCount = graphData?.nodes.length ?? 0
   const edgeCount = graphData?.edges.length ?? 0
@@ -25,15 +27,34 @@ export function App() {
         )}
 
         {fetchStatus === 'done' && (
-          <>
-            <div style={{ color: '#888' }}>
-              {nodeCount.toLocaleString()} nodes · {edgeCount.toLocaleString()} edges
-            </div>
-          </>
+          <div style={{ color: '#888' }}>
+            {nodeCount.toLocaleString()} nodes · {edgeCount.toLocaleString()} edges
+          </div>
         )}
 
         {fetchStatus === 'error' && (
           <div style={{ color: '#f87171' }}>failed to load data</div>
+        )}
+
+        {fetchStatus === 'done' && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+            {graphs.map((g, i) => (
+              <div
+                key={g.file}
+                onClick={() => { if (i !== currentGraphIndex) loadGraph(i) }}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  cursor: i === currentGraphIndex ? 'default' : 'pointer',
+                  color: i === currentGraphIndex ? '#e2d9c0' : '#888',
+                  background: i === currentGraphIndex ? 'rgba(226,217,192,0.12)' : 'transparent',
+                  borderBottom: i === currentGraphIndex ? '1px solid #e2d9c0' : '1px solid transparent',
+                }}
+              >
+                {g.label}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

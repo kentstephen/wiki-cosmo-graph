@@ -11,8 +11,8 @@ export interface PreBakedGraph {
   linkColors: number[]
 }
 
-export async function loadGraphFromDb(): Promise<PreBakedGraph> {
-  const res = await fetch(import.meta.env.BASE_URL + 'graph.json')
+export async function loadGraphFromDb(filename = 'graph.json'): Promise<PreBakedGraph> {
+  const res = await fetch(import.meta.env.BASE_URL + filename)
   if (!res.ok) throw new Error(`Failed to load graph data: ${res.status}`)
   return res.json()
 }
