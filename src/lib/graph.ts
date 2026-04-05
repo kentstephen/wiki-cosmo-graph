@@ -152,20 +152,20 @@ export function buildNeighborhoodSubgraph(
     adjacency.get(t)!.push(s)
   }
 
-  // Copy positions, sizes, and colors directly from the full graph — same look as the main view
-  const pointPositions = new Float32Array(nodes.length * 2)
+  // Copy sizes and colors from the full graph
   const pointSizes = new Float32Array(nodes.length)
   const pointColors = new Float32Array(nodes.length * 4)
   for (let newIdx = 0; newIdx < sortedOld.length; newIdx++) {
     const oldIdx = sortedOld[newIdx]
-    pointPositions[newIdx * 2] = fullGraph.pointPositions[oldIdx * 2]
-    pointPositions[newIdx * 2 + 1] = fullGraph.pointPositions[oldIdx * 2 + 1]
     pointSizes[newIdx] = fullGraph.pointSizes[oldIdx]
     pointColors[newIdx * 4] = fullGraph.pointColors[oldIdx * 4]
     pointColors[newIdx * 4 + 1] = fullGraph.pointColors[oldIdx * 4 + 1]
     pointColors[newIdx * 4 + 2] = fullGraph.pointColors[oldIdx * 4 + 2]
     pointColors[newIdx * 4 + 3] = fullGraph.pointColors[oldIdx * 4 + 3]
   }
+
+  // Compute fresh layout for the subgraph so nodes don't overlap
+  const pointPositions = computeLayoutWithCollision(nodes.length, edges, pointSizes)
 
   const linkIndexes = new Float32Array(edges.length * 2)
   edges.forEach(([s, t], i) => { linkIndexes[i * 2] = s; linkIndexes[i * 2 + 1] = t })
