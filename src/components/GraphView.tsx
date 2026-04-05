@@ -101,8 +101,8 @@ export function GraphView() {
       const isSeed = seedIndicesRef.current.has(i)
       const isKey = keyNodeIndicesRef.current.has(i)
 
-      // Seeds: always show. Key nodes: show if toggled on. Others: show when zoomed in enough.
-      if (!isSeed && !(isKey && showKeyNodesRef.current) && zoom < 3) continue
+      // Key nodes: show if toggled on. Everything else (including seeds): only when zoomed in.
+      if (!(isKey && showKeyNodesRef.current) && zoom < 3) continue
 
       const pos = graph.spaceToScreenPosition([positions[i * 2], positions[i * 2 + 1]])
 
