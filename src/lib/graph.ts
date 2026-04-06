@@ -73,22 +73,29 @@ export function graphDataFromPreBaked(pb: PreBakedGraph): GraphData {
   }
 }
 
-/** Pre-compute static positions using d3-force with collision avoidance. */
+/** Pre-compute static positions using d3-force with collision avoidance.
+ *  When `spread` is true (subgraphs), use stronger repulsion and wider spacing. */
 function computeLayoutWithCollision(
   nodeCount: number,
   edges: [number, number][],
   sizes: Float32Array,
+  spread = false,
 ): Float32Array {
+  const padding = spread ? 20 : 6
+  const charge = spread ? -600 : -200
+  const linkDist = spread ? 120 : 50
+  const linkStr = spread ? 0.03 : 0.05
+
   const simNodes = Array.from({ length: nodeCount }, (_, i) => ({
     radius: sizes[i] ?? 4,
   } as { x?: number; y?: number; radius: number }))
   const simLinks = edges.map(([s, t]) => ({ source: s, target: t }))
 
   const sim = forceSimulation(simNodes as any)
-    .force('link', forceLink(simLinks).strength(0.05).distance(50))
-    .force('charge', forceManyBody().strength(-200))
+    .force('link', forceLink(simLinks).strength(linkStr).distance(linkDist))
+    .force('charge', forceManyBody().strength(charge))
     .force('center', forceCenter(0, 0))
-    .force('collide', forceCollide<any>().radius((d: any) => (d.radius ?? 4) + 6).strength(0.8))
+    .force('collide', forceCollide<any>().radius((d: any) => (d.radius ?? 4) + padding).strength(1.0).iterations(3))
     .stop()
 
   for (let i = 0; i < 500; i++) sim.tick()
@@ -165,7 +172,7 @@ export function buildNeighborhoodSubgraph(
   }
 
   // Compute fresh layout for the subgraph so nodes don't overlap
-  const pointPositions = computeLayoutWithCollision(nodes.length, edges, pointSizes)
+  const pointPositions = computeLayoutWithCollision(nodes.length, edges, pointSizes, true)
 
   const linkIndexes = new Float32Array(edges.length * 2)
   edges.forEach(([s, t], i) => { linkIndexes[i * 2] = s; linkIndexes[i * 2 + 1] = t })
