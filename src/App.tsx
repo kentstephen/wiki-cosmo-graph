@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from './lib/store'
 import { GraphView } from './components/GraphView'
 
@@ -14,6 +14,19 @@ export function App() {
 
   const nodeCount = graphData?.nodes.length ?? 0
   const edgeCount = graphData?.edges.length ?? 0
+  const [hasInteracted, setHasInteracted] = useState(false)
+
+  // Listen for scroll/wheel/pointer interaction to dismiss centered instructions
+  useEffect(() => {
+    if (hasInteracted) return
+    const dismiss = () => setHasInteracted(true)
+    window.addEventListener('wheel', dismiss, { once: true })
+    window.addEventListener('pointerdown', dismiss, { once: true })
+    return () => {
+      window.removeEventListener('wheel', dismiss)
+      window.removeEventListener('pointerdown', dismiss)
+    }
+  }, [hasInteracted])
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', fontFamily: '"Nunito Sans", -apple-system, sans-serif' }}>
@@ -59,8 +72,29 @@ export function App() {
       </div>
 
       {fetchStatus === 'done' && (
-        <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#555', fontSize: 11, userSelect: 'none' }}>
-          hover to highlight · click to drill down · right-click to open wikipedia · esc to go back
+        <div style={{
+          position: 'absolute',
+          userSelect: 'none',
+          zIndex: 20,
+          transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+          ...(hasInteracted
+            ? { bottom: 10, left: 10, color: '#555', fontSize: 11, transform: 'none', opacity: 0.8, background: 'none', padding: 0, borderRadius: 0 }
+            : { top: '25%', left: '50%', transform: 'translate(-50%, -50%)', color: '#c8c0b0', fontSize: 15, opacity: 1, background: 'rgba(10,12,16,0.85)', padding: '20px 28px', borderRadius: 8 }
+          ),
+        }}>
+          <div style={{
+            textAlign: hasInteracted ? 'left' : 'center',
+            transition: 'opacity 0.8s ease',
+          }}>
+            {!hasInteracted && (
+              <div style={{ fontSize: 20, color: '#c8c0b0', fontWeight: 600 }}>
+                Scroll to zoom
+              </div>
+            )}
+            {hasInteracted && (
+              <span>scroll to zoom · hover and click to explore · esc to go back</span>
+            )}
+          </div>
         </div>
       )}
     </div>
