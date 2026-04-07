@@ -76,10 +76,12 @@ export function App() {
           position: 'absolute',
           userSelect: 'none',
           zIndex: 20,
-          transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'opacity 1.5s ease, font-size 1.5s ease, padding 1.5s ease, background 1.5s ease, color 1.5s ease',
+          bottom: 24,
+          left: 14,
           ...(hasInteracted
-            ? { bottom: 10, left: 10, color: '#555', fontSize: 11, transform: 'none', opacity: 0.8, background: 'none', padding: 0, borderRadius: 0 }
-            : { top: '25%', left: '50%', transform: 'translate(-50%, -50%)', color: '#c8c0b0', fontSize: 15, opacity: 1, background: 'rgba(10,12,16,0.85)', padding: '20px 28px', borderRadius: 8 }
+            ? { color: '#555', fontSize: 14, opacity: 0.8, background: 'none', padding: 0, borderRadius: 0 }
+            : { color: '#c8c0b0', fontSize: 15, opacity: 1, background: 'rgba(10,12,16,0.85)', padding: '14px 20px', borderRadius: 8 }
           ),
         }}>
           <div style={{

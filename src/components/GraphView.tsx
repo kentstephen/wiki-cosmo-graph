@@ -346,10 +346,10 @@ useEffect(() => {
           onClick={() => setShowKeyNodes(v => !v)}
           style={{
             position: 'absolute',
-            bottom: 10,
-            right: 10,
+            bottom: 24,
+            right: 14,
             color: showKeyNodes ? '#e2d9c0' : '#555',
-            fontSize: 11,
+            fontSize: 14,
             fontFamily: '"Nunito Sans", -apple-system, sans-serif',
             cursor: 'pointer',
             userSelect: 'none',
