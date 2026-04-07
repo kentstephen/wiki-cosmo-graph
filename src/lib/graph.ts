@@ -81,10 +81,37 @@ function computeLayoutWithCollision(
   sizes: Float32Array,
   spread = false,
 ): Float32Array {
-  const padding = spread ? 20 : 6
-  const charge = spread ? -600 : -200
-  const linkDist = spread ? 120 : 50
-  const linkStr = spread ? 0.03 : 0.05
+  // Scale forces based on edge density — dense subgraphs need much weaker links
+  // and stronger repulsion to avoid collapsing into a packed ball
+  const density = nodeCount > 1 ? edges.length / (nodeCount * (nodeCount - 1) / 2) : 0
+  let padding: number, charge: number, linkDist: number, linkStr: number
+
+  if (spread) {
+    if (density > 0.3) {
+      // Near-clique: links are almost meaningless, just spread nodes out
+      charge = -2000
+      linkStr = 0.002
+      linkDist = 200
+      padding = 25
+    } else if (density > 0.1) {
+      // Dense subgraph
+      charge = -1200
+      linkStr = 0.008
+      linkDist = 150
+      padding = 20
+    } else {
+      // Sparse subgraph — original params work fine
+      charge = -600
+      linkStr = 0.03
+      linkDist = 120
+      padding = 20
+    }
+  } else {
+    charge = -200
+    linkStr = 0.05
+    linkDist = 50
+    padding = 6
+  }
 
   const simNodes = Array.from({ length: nodeCount }, (_, i) => ({
     radius: sizes[i] ?? 4,

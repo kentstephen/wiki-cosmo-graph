@@ -100,16 +100,65 @@ pointDefaultSize: 3, linkDefaultWidth: 0.8
 - 78MB JSON is fine to serve and parse — cosmos.gl handles 236K nodes, the bottleneck was CPU layout not GPU rendering
 - **Backup data before re-baking** — always `cp graph.json graph.json.backup` first
 
+### Dirty working tree (2026-04-07) — CLEANED UP (2026-04-07 session 2)
+All broken changes from the previous session were reverted with `git checkout HEAD --`. The `resolveOverlaps()` function, Go layout/main changes, and modified graph.json were all discarded. Only MEMORY.md changes kept.
+
+### What was done (2026-04-07) — UI polish
+- **Centered intro prompt**: Instructions start centered on screen ("Scroll to zoom") with dark background, then fade in-place to bottom-left corner (14px, muted) on first scroll/click. No spatial movement — just opacity/size/color transition over 1.5s. Commits `133c669`, `4f04783`.
+- **Bottom text sizing**: Instructions and "show landmarks" toggle both set to 14px, bottom: 24px. Stephen couldn't read them at 11px.
+- **Dev server**: Use port 5177 (`npx vite --port 5177`) to avoid conflicts with other apps.
+
+### What was done (2026-04-07, session 2) — density-adaptive subgraph layout
+- **Reverted all broken changes** from previous session (resolveOverlaps, Go layout/main changes, modified graph.json)
+- **Density-adaptive force params** in `computeLayoutWithCollision()`: computes edge density (edges / max possible edges), then picks force params accordingly:
+  - density > 0.3 (near-clique): charge=-2000, linkStr=0.002, linkDist=200, padding=25
+  - density > 0.1 (dense): charge=-1200, linkStr=0.008, linkDist=150, padding=20
+  - sparse: original params (charge=-600, linkStr=0.03, linkDist=120, padding=20)
+- **Root cause**: dense subgraphs (e.g. "Ancients" with 565 nodes, 92K edges, density ~58%) had link springs overwhelming repulsion, packing nodes into a solid ball. Weakening link strength and boosting repulsion lets the topology breathe.
+- Full graph params (spread=false) unchanged.
+
 ### Known issues (WIP)
-- **Nodes are too overlapped** — the 236K node layout is a dense blob. Need better spread/cluster separation. ForceAtlas2 or stronger repulsion with more ticks could help.
+- **Full graph nodes still overlapped** — the 1,213-node graph (Fyodorov + Musk) has 460 overlapping node pairs. The graph.json has no `pointPositions` so the browser computes layout via d3-force each load. The full-graph force params (charge=-200, padding=6) may need similar density-adaptive tuning.
+- **cosmos.gl live simulation** — Stephen finds the floating/jittering disorienting. Any cosmos simulation feature is a distant stretch goal only after layout is solid. Do NOT enable without explicit approval.
+
+### Fixed (2026-04-05)
+- **Subgraph node overlap** — `buildNeighborhoodSubgraph()` was copying positions from the full graph, where neighbor nodes are clustered together. Fixed by calling `computeLayoutWithCollision()` to compute fresh d3-force positions with `forceCollide` for each subgraph. Commit `4eae862`.
+- **Label styling** — Labels now positioned above nodes (offset by screen radius so they don't overlap the node at any zoom), 14px Linux Libertine (Wikipedia font), `#ccc` for non-seeds, `#ff4488` for seeds. Zoom threshold raised to 10 so labels only appear when zoomed in close. "Show landmarks" toggle now includes seed nodes. Commit `27bdb8f`.
+
+### Label design preferences
+- **Font**: Linux Libertine / Georgia / Times serif — matches Wikipedia
+- **Color**: `#ccc` for regular labels, `#ff4488` pink for seeds. NOT white (`#fff`) — too harsh. NOT the original `#e2d9c0` gold — hard to read on gold nodes.
+- **No pill/background** on labels — Stephen rejected it
+- **Position**: above the node, offset by screen radius so it never overlaps the node circle
+- **Size**: 14px for all labels, bold 700 for seeds
+
+### Lessons learned
+- **Read the MEMORY.md first** — Stephen has asked multiple times. Before proposing solutions, read CLAUDE.md and .claude/memory/MEMORY.md to understand what's been tried, what's been rejected, and what the constraints are. Don't jump to code changes without reviewing context.
+- **This is a live GitHub Pages app** — changes need to be committed and pushed to main to be visible on the live site. Don't ask unnecessary questions about the deployment model — it's documented.
+- **Don't loop on overlap** — previous sessions went in circles on this. The subgraph fix was simple: use the existing `computeLayoutWithCollision()` function. Don't overcomplicate it.
+- **NEVER re-bake or recompute the full graph layout without explicit approval** — Session 2026-04-07 tried to run `go run . --layout-only` to recompute all positions, which would have replaced the entire graph layout. Stephen was furious. The graph.json positions are the result of careful work and must not be casually recomputed.
+- **Naive O(n²) overlap resolution destroys the graph** — Session 2026-04-07 added a `resolveOverlaps()` function in `src/lib/graph.ts` that pushed overlapping node pairs apart with an iterative O(n²) pass. It made the graph look like garbage — completely destroyed the visual structure. The node sizes in `pointSizes` are in cosmos.gl units (1-14), NOT screen pixels, so using them as collision radii produces wildly wrong displacement. Any overlap fix must account for the coordinate space and how cosmos.gl scales/renders nodes.
+- **Always revert failed changes before moving on** — Don't leave broken code in the working tree. If something doesn't work, undo it immediately.
+- **Don't just try things and see what happens** — Research the problem properly first. Understand the coordinate spaces, the rendering pipeline, and how cosmos.gl interprets positions and sizes before writing code that modifies them.
 
 ### TODO from this session
-- Fix node overlap / layout density (priority)
 - Better force layout algorithm (ForceAtlas2 for cluster structure)
 - Arrow/Parquet binary format instead of 78MB JSON (when DuckDB-WASM comes in)
 - Wikipedia autocomplete API for URL input
 - Support 3+ seed articles
 - Mosaic (uwdata) architecture for DuckDB→visualization data flow
+
+## GitHub Pages Deployment — KNOWN ISSUE
+
+**The `deploy-pages@v4` action has a race condition** where it can't find the `github-pages` artifact even though `upload-pages-artifact@v3` just uploaded it successfully. The build passes fine — it's a transient GitHub API timing issue.
+
+**When a deploy fails after push to main**: check the logs first. If the build (`tsc && vite build`) succeeded and only the deploy step failed with "No artifacts named github-pages were found", just re-run the workflow:
+```
+gh run rerun <run-id>
+```
+Or re-run from the GitHub Actions UI. It will succeed on retry.
+
+This has happened at least once (2026-04-06, commit `a72a27b`). Keep an eye on it — if it keeps happening, consider pinning `upload-pages-artifact` and `deploy-pages` to matching versions or adding a retry step.
 
 ## Current Direction (updated 2026-04-05)
 
